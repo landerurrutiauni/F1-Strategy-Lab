@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # The repository's default branch is the development branch; main is covered for later.
+    branches: [main, claude/f1-strategy-lab-game-s91ao4]
   workflow_dispatch:
 
 # Read the repository, publish to Pages and request the OIDC token Pages needs. Nothing else.
