@@ -10,14 +10,14 @@ export interface Settings {
   gapMode: GapMode;
   showProjections: boolean;
   confirmLeave: boolean;
-  /** Playback speed of the live race (1 = about 12 s per lap). */
+  /** Playback speed of the live race, as a multiple of real time. */
   raceSpeed: RaceSpeed;
   /** Pause the live race for Safety Cars, weather changes and problems with your car. */
   pauseOnEvents: boolean;
 }
 
-export type RaceSpeed = 1 | 2 | 4 | 8;
-export const RACE_SPEEDS: RaceSpeed[] = [1, 2, 4, 8];
+export type RaceSpeed = 4 | 8 | 16 | 32 | 64;
+export const RACE_SPEEDS: RaceSpeed[] = [4, 8, 16, 32, 64];
 
 export const DEFAULT_SETTINGS: Settings = {
   motion: 'system',
@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   gapMode: 'interval',
   showProjections: true,
   confirmLeave: true,
-  raceSpeed: 2,
+  raceSpeed: 16,
   pauseOnEvents: true,
 };
 

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { ArrowLeft, Dices, Trophy } from 'lucide-react';
 import { Segmented } from '../../components/Segmented';
-import { DIFFICULTIES, SPRINT_LAPS } from '../../game/constants';
+import { DIFFICULTIES } from '../../game/constants';
 import { DRIVERS, TEAMS, getDriver, getTeam } from '../../game/data/teams';
 import { randomSeed } from '../../game/rng';
 import { isValidSeasonConfig } from '../../game/season/season';
 import type { SeasonConfig } from '../../game/season/types';
-import type { Difficulty, RaceLength } from '../../game/types';
+import type { Difficulty } from '../../game/types';
 
 interface SeasonSetupScreenProps {
   initial: Pick<SeasonConfig, 'playerDriverId' | 'difficulty'>;
@@ -16,7 +16,7 @@ interface SeasonSetupScreenProps {
 }
 
 export function SeasonSetupScreen({ initial, hasSeason, onStart, onBack }: SeasonSetupScreenProps) {
-  const [config, setConfig] = useState<SeasonConfig>(() => ({ ...initial, raceLaps: 15, seed: randomSeed() }));
+  const [config, setConfig] = useState<SeasonConfig>(() => ({ ...initial, seed: randomSeed() }));
   const driver = getDriver(config.playerDriverId);
   const team = getTeam(driver.teamId);
   const valid = isValidSeasonConfig(config);
@@ -63,13 +63,6 @@ export function SeasonSetupScreen({ initial, hasSeason, onStart, onBack }: Seaso
               <span className="team-dot" style={{ background: team.color }} aria-hidden="true" /> {team.name}. Race engineer: {driver.engineer}.
             </p>
           </div>
-
-          <Segmented<RaceLength>
-            legend="Grand Prix distance"
-            value={config.raceLaps}
-            onChange={(laps) => set('raceLaps', laps)}
-            options={[10, 15, 20].map((n) => ({ value: n as RaceLength, label: `${n} laps`, hint: `Sprints: ${SPRINT_LAPS[n as RaceLength]} laps` }))}
-          />
 
           <Segmented<Difficulty>
             legend="Difficulty"

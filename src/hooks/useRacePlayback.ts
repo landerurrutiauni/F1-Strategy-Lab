@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BOOST_COST } from '../game/constants';
-import { getCircuit } from '../game/data/circuits';
 import { getPlayerCar, validateDecision } from '../game/engine';
 import { buildTimelines, finishTime, lineTime, type CarTimeline } from '../game/replay';
 import type { PlayerDecision, RaceState } from '../game/types';
 import type { RaceController } from './useRaceController';
 import type { RaceSpeed } from './settingsStore';
 
-/** Real seconds per lap at 1× speed. */
-export const REAL_SECONDS_PER_LAP = 12;
+/** A typical lap in real time (s), used to describe the speeds. */
+export const TYPICAL_LAP_SECONDS = 90;
 /** Cars keep rolling this long (race time) after the last one takes the flag. */
 const COOL_DOWN = 6;
 
@@ -187,7 +186,8 @@ export function useRacePlayback(controller: RaceController & { race: RaceState }
   useEffect(() => {
     if (!playing) return;
     if (typeof requestAnimationFrame !== 'function') return;
-    const rate = (optionsRef.current.speed * getCircuit(engineRef.current.config.circuitId).baseLapTime) / REAL_SECONDS_PER_LAP;
+    // Speeds are multiples of real time: at 16× a 90-second lap takes under 6 seconds.
+    const rate = optionsRef.current.speed;
     let last = performance.now();
     let frame = requestAnimationFrame(function tick(now) {
       const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));

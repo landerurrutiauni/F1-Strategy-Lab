@@ -35,8 +35,8 @@ import {
   SLOW_STOP_CHANCE,
   SLOW_STOP_MAX,
   SLOW_STOP_MIN,
-  VALID_RACE_LAPS,
-  VALID_SPRINT_LAPS,
+  MAX_RACE_LAPS,
+  MIN_RACE_LAPS,
 } from './constants';
 import { CIRCUITS, getCircuit } from './data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER, isCompoundId } from './data/tyres';
@@ -44,7 +44,7 @@ import { DRIVERS, getDriver, getTeam, isDriverId } from './data/teams';
 import { carPaceOffset, computeLapTime, safetyCarLapTime, wearSmoothness } from './lapTime';
 import { evaluateStrategies, planLabel, tracePlan } from './projection';
 import { createRng, normalizeSeed } from './rng';
-import { expectedWear, failureChance, fastestCompoundFor, suitabilityGap } from './tyreModel';
+import { circuitWear, expectedWear, failureChance, fastestCompoundFor, suitabilityGap } from './tyreModel';
 import { buildForecast, generateWeatherTimeline, initialWetness, nextWetness, rainLabel } from './weather';
 import type {
   CarState,
@@ -78,9 +78,8 @@ export function validateConfig(config: Partial<RaceConfig> | null | undefined): 
   if (!CIRCUITS.some((c) => c.id === config.circuitId)) errors.push('Choose a circuit.');
   if (!isDriverId(config.playerDriverId)) errors.push('Choose the driver you will run strategy for.');
   if (config.session !== undefined && config.session !== 'race' && config.session !== 'sprint') errors.push('Unknown session.');
-  if (config.session === 'sprint') {
-    if (!VALID_SPRINT_LAPS.includes(config.laps as number)) errors.push('Sprint distance must be 5, 8 or 10 laps.');
-  } else if (!VALID_RACE_LAPS.includes(config.laps as number)) errors.push('Race distance must be 10, 15 or 20 laps.');
+  if (typeof config.laps !== 'number' || !Number.isInteger(config.laps) || config.laps < MIN_RACE_LAPS || config.laps > MAX_RACE_LAPS)
+    errors.push(`Race distance must be between ${MIN_RACE_LAPS} and ${MAX_RACE_LAPS} laps.`);
   if (config.grid !== undefined) {
     const ids = new Set(config.grid);
     if (!Array.isArray(config.grid) || config.grid.length !== DRIVERS.length || ids.size !== DRIVERS.length || DRIVERS.some((d) => !ids.has(d.id)))
@@ -418,7 +417,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
       expectedWear({
         compound: car.tyre.compound,
         pace,
-        degradation: circuit.degradation,
+        degradation: circuitWear(circuit),
         wetness,
         trackTemp,
         safetyCar: sc,

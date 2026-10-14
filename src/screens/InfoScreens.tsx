@@ -9,7 +9,7 @@ import { COMPOUNDS, COMPOUND_ORDER } from '../game/data/tyres';
 import { formatDelta, formatRaceTime } from '../game/format';
 import { clearActiveRace, clearRecords, computeStats, loadRecords } from '../game/persistence';
 import { DEFAULT_SETTINGS, RACE_SPEEDS, saveSettings, type MotionSetting, type RaceSpeed } from '../hooks/settingsStore';
-import { REAL_SECONDS_PER_LAP } from '../hooks/useRacePlayback';
+import { TYPICAL_LAP_SECONDS } from '../hooks/useRacePlayback';
 import { useSettings } from '../hooks/useSettings';
 import { useSound } from '../hooks/useSound';
 
@@ -41,8 +41,9 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
           <h2>Your job</h2>
           <p>
             You are the race strategist for one driver on the 2026 grid. You do not steer the car: you choose the pace, the tyres and when to stop.
-            After <strong>Lights out</strong> the race runs live: all 22 cars lap the circuit at their own pace, pull into the pit lane for their stops and
-            follow the Safety Car when it comes out. A 15-lap race takes about two to three minutes at 2× speed.
+            After <strong>Lights out</strong> the race runs live over the circuit's full distance: all 22 cars lap the circuit at their own pace, pull into
+            the pit lane for their stops and follow the Safety Car when it comes out. Speeds run from 4× to 64× real time; at 16× a typical Grand Prix takes about
+            six minutes.
           </p>
         </section>
         <section>
@@ -53,7 +54,7 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
             <li>Your call locks in when the leader starts that lap. The countdown under the decision panel tells you how long you have.</li>
           </ol>
           <p>
-            Pause with <kbd>Space</kbd> or the Pause button whenever you need time to think, change the speed from 1× to 8×, or use <strong>Next lap</strong> to jump
+            Pause with <kbd>Space</kbd> or the Pause button whenever you need time to think, change the speed from 4× to 64× real time, or use <strong>Next lap</strong> to jump
             to the next time the leader crosses the line. With <em>Pause for key moments</em> on (Settings), the race stops by itself for a Safety Car, a change in the
             weather or a problem with your car.
           </p>
@@ -356,7 +357,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
             legend="Race speed"
             value={settings.raceSpeed}
             onChange={(raceSpeed) => update({ raceSpeed })}
-            options={RACE_SPEEDS.map((s) => ({ value: s, label: `${s}×`, hint: `about ${Math.round(REAL_SECONDS_PER_LAP / s)} s a lap` }))}
+            options={RACE_SPEEDS.map((s) => ({ value: s, label: `${s}×`, hint: `${Math.round(TYPICAL_LAP_SECONDS / s)} s a lap` }))}
           />
         </section>
         <section className="panel">

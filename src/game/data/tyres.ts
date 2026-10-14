@@ -3,6 +3,9 @@ import type { CompoundId, CompoundSpec } from '../types';
 /**
  * Fictional tyre compound parameters.
  *
+ * Wear rates are per lap of a 5.3 km circuit at average abrasiveness (full race
+ * distances): a soft lasts about 20 laps, a medium about 30 and a hard about 40.
+ *
  * Slicks (soft / medium / hard) trade outright pace for durability. Treaded tyres
  * (intermediate / wet) are modelled with an "ideal wetness" and a penalty that grows
  * with the square of the mismatch, so they are excellent in their window and poor
@@ -15,7 +18,7 @@ export const COMPOUNDS: Record<CompoundId, CompoundSpec> = {
     letter: 'S',
     slick: true,
     dryPaceOffset: 0,
-    baseWear: 6.4,
+    baseWear: 3.9,
     degSensitivity: 1.15,
     warmUpPenalty: 0.2,
     idealWetness: 0,
@@ -31,7 +34,7 @@ export const COMPOUNDS: Record<CompoundId, CompoundSpec> = {
     letter: 'M',
     slick: true,
     dryPaceOffset: 0.45,
-    baseWear: 4.2,
+    baseWear: 2.6,
     degSensitivity: 1,
     warmUpPenalty: 0.35,
     idealWetness: 0,
@@ -47,7 +50,7 @@ export const COMPOUNDS: Record<CompoundId, CompoundSpec> = {
     letter: 'H',
     slick: true,
     dryPaceOffset: 0.85,
-    baseWear: 3,
+    baseWear: 1.8,
     degSensitivity: 0.9,
     warmUpPenalty: 0.6,
     idealWetness: 0,
@@ -63,7 +66,7 @@ export const COMPOUNDS: Record<CompoundId, CompoundSpec> = {
     letter: 'I',
     slick: false,
     dryPaceOffset: 0,
-    baseWear: 3.5,
+    baseWear: 2.4,
     degSensitivity: 1,
     warmUpPenalty: 0.3,
     idealWetness: 0.45,
@@ -79,7 +82,7 @@ export const COMPOUNDS: Record<CompoundId, CompoundSpec> = {
     letter: 'W',
     slick: false,
     dryPaceOffset: 0,
-    baseWear: 3,
+    baseWear: 2,
     degSensitivity: 0.9,
     warmUpPenalty: 0.3,
     idealWetness: 0.85,

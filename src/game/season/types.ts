@@ -1,4 +1,4 @@
-import type { CompoundId, Difficulty, RaceLength, WeatherScenario } from '../types';
+import type { CompoundId, Difficulty, WeatherScenario } from '../types';
 
 /** Sessions of a race weekend, in running order. */
 export type SessionId = 'fp1' | 'fp2' | 'fp3' | 'sprint-quali' | 'sprint' | 'quali' | 'race';
@@ -146,8 +146,6 @@ export interface WeekendState {
 export interface SeasonConfig {
   playerDriverId: string;
   difficulty: Difficulty;
-  /** Grand Prix distance; Sprints run about half of it. */
-  raceLaps: RaceLength;
   seed: number;
 }
 

@@ -6,7 +6,6 @@ import { Segmented } from '../../components/Segmented';
 import { TyreBadge } from '../../components/TyreBadge';
 import { WeatherIcon } from '../../components/WeatherIcon';
 import { Meter, ResultTable, Timesheet } from '../../components/season/SeasonTables';
-import { SPRINT_LAPS } from '../../game/constants';
 import { getCircuit } from '../../game/data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER } from '../../game/data/tyres';
 import { getDriver, getTeam } from '../../game/data/teams';
@@ -254,7 +253,7 @@ function RaceStartView({
   const player = season.config.playerDriverId;
   const gridPos = grid.indexOf(player) + 1;
   const weather = weekend.weather[session]!;
-  const laps = session === 'sprint' ? SPRINT_LAPS[season.config.raceLaps] : season.config.raceLaps;
+  const laps = session === 'sprint' ? circuit.sprintLaps ?? 0 : circuit.laps;
 
   // Same pre-race analysis as the quick-race briefing: projected race time for each start tyre.
   const options = useMemo(() => {

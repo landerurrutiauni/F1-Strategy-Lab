@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CIRCUITS, nextRound } from './game/data/circuits';
+import { CIRCUITS, getCircuit, nextRound } from './game/data/circuits';
 import { DEFAULT_PLAYER_DRIVER_ID, isDriverId } from './game/data/teams';
 import { isCompoundId } from './game/data/tyres';
 import { loadActiveRace } from './game/persistence';
 import { randomSeed } from './game/rng';
 import { createSeason, currentSession, recordRace } from './game/season/season';
-import type { RaceConfig, RaceLength, RaceState, ScenarioId } from './game/types';
+import type { RaceConfig, RaceState, ScenarioId } from './game/types';
 import { useRaceController } from './hooks/useRaceController';
 import { useSeason } from './hooks/useSeason';
 import { BriefingScreen } from './screens/BriefingScreen';
@@ -50,17 +50,18 @@ const isValidSeed = (seed: number) => Number.isInteger(seed) && seed > 0 && seed
 function initialConfig(): RaceConfig {
   const params = urlParams();
   const seed = Number(params.get('seed'));
-  const laps = Number(params.get('laps'));
   const circuit = params.get('circuit');
   const driver = params.get('driver');
   const start = params.get('tyre');
   const weather = params.get('weather');
   const difficulty = params.get('difficulty');
   const scenario = params.get('scenario') as ScenarioId | null;
+  const circuitId = circuit && CIRCUITS.some((c) => c.id === circuit) ? circuit : nextRound().id;
   return {
-    circuitId: circuit && CIRCUITS.some((c) => c.id === circuit) ? circuit : nextRound().id,
+    circuitId,
     playerDriverId: isDriverId(driver) ? driver : DEFAULT_PLAYER_DRIVER_ID,
-    laps: laps === 10 || laps === 20 ? (laps as RaceLength) : 15,
+    // Every race runs its circuit's official distance.
+    laps: getCircuit(circuitId).laps,
     startCompound: isCompoundId(start) ? start : 'medium',
     weather: weather === 'variable' || weather === 'rainy' ? weather : 'dry',
     difficulty: difficulty === 'easy' || difficulty === 'hard' ? difficulty : 'normal',

@@ -69,8 +69,9 @@ describe('strategy rating', () => {
       const o = evaluateStrategies(s, getPlayerCar(s).id);
       return { pace: 'standard' as const, box: !!o?.best.boxNow, compound: o?.best.boxNow ? o.best.stops[0].compound : getPlayerCar(s).tyre.compound, boost: false };
     };
-    const good = rateStrategy(runLaps(createRace(baseConfig({ seed: 321 })), 15, smart));
-    const poor = rateStrategy(runLaps(createRace(baseConfig({ seed: 321, startCompound: 'soft' })), 15, () => ({ pace: 'push', box: false, compound: 'soft', boost: false })));
+    // A full stint's worth of laps, so ignoring the tyres actually hurts.
+    const good = rateStrategy(runLaps(createRace(baseConfig({ seed: 321, laps: 30 })), 30, smart));
+    const poor = rateStrategy(runLaps(createRace(baseConfig({ seed: 321, laps: 30, startCompound: 'soft' })), 30, () => ({ pace: 'push', box: false, compound: 'soft', boost: false })));
     expect(good.score).toBeGreaterThan(poor.score);
     expect(poor.keyDecisions.some((k) => k.effect === 'harmed')).toBe(true);
   });

@@ -76,6 +76,10 @@ export interface CircuitSpec {
   weekend: string;
   /** Race day (ISO date). */
   raceDate: string;
+  /** Official Grand Prix distance in laps (about 305 km; Monaco is shorter). */
+  laps: number;
+  /** Official Sprint distance in laps (about 100 km), at Sprint weekends. */
+  sprintLaps?: number;
   name: string;
   fullName: string;
   region: string;
@@ -290,7 +294,8 @@ export interface RaceConfig {
   circuitId: string;
   /** The driver whose strategy the player controls. */
   playerDriverId: string;
-  laps: RaceLength | SprintLength;
+  /** Race distance in laps (the circuit's official Grand Prix or Sprint distance). */
+  laps: number;
   startCompound: CompoundId;
   weather: WeatherScenario;
   difficulty: Difficulty;

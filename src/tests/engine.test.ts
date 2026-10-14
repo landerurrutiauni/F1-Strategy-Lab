@@ -22,14 +22,16 @@ describe('race configuration', () => {
 
   it('rejects invalid configurations', () => {
     expect(validateConfig(baseConfig())).toEqual([]);
-    expect(validateConfig(baseConfig({ laps: 12 as never }))).not.toEqual([]);
+    expect(validateConfig(baseConfig({ laps: 2 }))).not.toEqual([]);
+    expect(validateConfig(baseConfig({ laps: 120 }))).not.toEqual([]);
+    expect(validateConfig(baseConfig({ laps: 12.5 }))).not.toEqual([]);
     expect(validateConfig(baseConfig({ circuitId: 'atlantis' }))).not.toEqual([]);
     expect(validateConfig(baseConfig({ playerDriverId: 'nobody' }))).not.toEqual([]);
     expect(validateConfig(baseConfig({ seed: 0 }))).not.toEqual([]);
     expect(validateConfig(baseConfig({ seed: Number.NaN }))).not.toEqual([]);
     expect(validateConfig(baseConfig({ startCompound: 'slick' as never }))).not.toEqual([]);
     expect(validateConfig(null)).not.toEqual([]);
-    expect(() => createRace(baseConfig({ laps: 7 as never }))).toThrow(RaceEngineError);
+    expect(() => createRace(baseConfig({ laps: 1 }))).toThrow(RaceEngineError);
   });
 });
 

@@ -8,7 +8,7 @@ import {
 import { getCircuit } from './data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER, DRY_COMPOUNDS } from './data/tyres';
 import { carPaceOffset, computeLapTime, safetyCarLapTime, wearSmoothness } from './lapTime';
-import { expectedWear, failureChance } from './tyreModel';
+import { circuitWear, expectedWear, failureChance } from './tyreModel';
 import { climatologyRain, nextWetness } from './weather';
 import type { CarState, CircuitSpec, CompoundId, PaceMode, RaceSession, RaceState } from './types';
 
@@ -166,7 +166,7 @@ function buildStint(ctx: ProjectionContext, compound: CompoundId, startLap: numb
         expectedWear({
           compound,
           pace: ctx.pace,
-          degradation: ctx.circuit.degradation,
+          degradation: circuitWear(ctx.circuit),
           wetness,
           trackTemp: ctx.trackTemp,
           safetyCar: sc,
@@ -255,6 +255,18 @@ export function evaluateStrategies(state: RaceState, carId: string, options: Pro
     });
   };
 
+  // Rule penalty for a two-stop plan, by compound pair.
+  const pairPenalty = new Map<string, number>();
+  const penaltyFor = (c1: CompoundId, c2: CompoundId) => {
+    const key = c1 + c2;
+    let value = pairPenalty.get(key);
+    if (value === undefined) {
+      value = compoundRulePenalty(new Set([...baseUsed, c1, c2]), ctx.session);
+      pairPenalty.set(key, value);
+    }
+    return value;
+  };
+
   // Zero stops.
   {
     const run = rangeSum(current, fromLap, lastLap, fromLap);
@@ -275,6 +287,14 @@ export function evaluateStrategies(state: RaceState, carId: string, options: Pro
           Math.max(first.wear, tail.wear),
         );
         if (maxStops < 2) continue;
+        // Two stops: only the best second stop for this first stop is kept. That leaves the
+        // best plan, the pit window and every first-action comparison unchanged while
+        // avoiding tens of thousands of plan objects on full-length races.
+        let bestTotal = Infinity;
+        let bestStop2: PlanStop | null = null;
+        let bestTime = 0;
+        let bestRisk = 0;
+        let bestWear = 0;
         for (let p2 = p1 + 1; p2 <= lastLap - 1; p2++) {
           const mid = rangeSum(t1, p1 + 1, p2, p1 + 1);
           const cost2 = pitCost(ctx, p2, stopPenalty);
@@ -282,17 +302,19 @@ export function evaluateStrategies(state: RaceState, carId: string, options: Pro
             if (c2 === c1 && car.allocation[c1] < 2) continue;
             const t2 = fresh.get(c2)!.get(p2 + 1)!;
             const end = rangeSum(t2, p2 + 1, lastLap, p2 + 1);
-            finalize(
-              [
-                { lap: p1, compound: c1 },
-                { lap: p2, compound: c2 },
-              ],
-              first.time + cost1 + mid.time + cost2 + end.time,
-              first.risk + mid.risk + end.risk,
-              Math.max(first.wear, mid.wear, end.wear),
-            );
+            const time = first.time + cost1 + mid.time + cost2 + end.time;
+            const risk = first.risk + mid.risk + end.risk;
+            const total = time + risk + penaltyFor(c1, c2);
+            if (total < bestTotal) {
+              bestTotal = total;
+              bestStop2 = { lap: p2, compound: c2 };
+              bestTime = time;
+              bestRisk = risk;
+              bestWear = Math.max(first.wear, mid.wear, end.wear);
+            }
           }
         }
+        if (bestStop2) finalize([{ lap: p1, compound: c1 }, bestStop2], bestTime, bestRisk, bestWear);
       }
     }
   }
@@ -382,7 +404,7 @@ export function tracePlan(state: RaceState, carId: string, stops: PlanStop[]): n
         expectedWear({
           compound,
           pace: 'standard',
-          degradation: ctx.circuit.degradation,
+          degradation: circuitWear(ctx.circuit),
           wetness,
           trackTemp: ctx.trackTemp,
           safetyCar: sc,

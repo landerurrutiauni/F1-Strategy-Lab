@@ -41,8 +41,8 @@ export const REFERENCE_TRACK_TEMP = 35;
 export const WEAR_PER_DEGREE = 0.012;
 
 /** Track wetness moves toward the rain intensity each lap at these rates. */
-export const WETTING_RATE = 0.65;
-export const DRYING_RATE = 0.28;
+export const WETTING_RATE = 0.45;
+export const DRYING_RATE = 0.1;
 
 export interface PaceModeSpec {
   id: PaceMode;
@@ -115,8 +115,8 @@ export const SC_PIT_FACTOR = 0.5;
 /** Tyre wear multiplier under the Safety Car. */
 export const SC_WEAR_FACTOR = 0.25;
 /** Safety Car duration range in laps (inclusive). */
-export const SC_MIN_LAPS = 2;
-export const SC_MAX_LAPS = 3;
+export const SC_MIN_LAPS = 3;
+export const SC_MAX_LAPS = 5;
 
 /** Stationary pit stop time (s). */
 export const PIT_STATIONARY_MEAN = 2.6;
@@ -128,11 +128,11 @@ export const FAST_STOP_CHANCE = 0.07;
 export const FAST_STOP_GAIN = 0.4;
 
 /** Base per-lap mistake probability (before pace, weather and driver multipliers). */
-export const BASE_ERROR_CHANCE = 0.009;
+export const BASE_ERROR_CHANCE = 0.004;
 export const ERROR_MIN_LOSS = 1.0;
 export const ERROR_MAX_LOSS = 3.5;
 /** Probability that a mistake becomes a retirement, dry and when on a mismatched tyre. */
-export const CRASH_SHARE_DRY = 0.08;
+export const CRASH_SHARE_DRY = 0.05;
 export const CRASH_SHARE_MISMATCH = 0.22;
 /** Extra wear from a lock-up / off-track moment (%). */
 export const ERROR_WEAR = 3;
@@ -145,15 +145,16 @@ export const COMPOUND_RULE_PENALTY = 40;
 
 /** Sprint distance for each Grand Prix distance (real Sprints are about a third of a Grand Prix). */
 export const SPRINT_LAPS = { 10: 5, 15: 8, 20: 10 } as const;
-export const VALID_RACE_LAPS = [10, 15, 20];
-export const VALID_SPRINT_LAPS = [5, 8, 10];
+/** Races use each circuit's real distance; the engine accepts any length in this range (tests use short races). */
+export const MIN_RACE_LAPS = 3;
+export const MAX_RACE_LAPS = 90;
 
 /** Championship points (2026 regulations: no bonus point for the fastest lap). */
 export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 export const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1];
 
 /** Radar horizon in laps. */
-export const FORECAST_HORIZON = 5;
+export const FORECAST_HORIZON = 8;
 
 export interface DifficultySpec {
   id: Difficulty;

@@ -5,7 +5,7 @@
 import { getCircuit } from './data/circuits';
 import { getDriver, getTeam } from './data/teams';
 import { wearSmoothness } from './lapTime';
-import { degradationPenalty, expectedWear, lapsUntilWear } from './tyreModel';
+import { circuitWear, degradationPenalty, expectedWear, lapsUntilWear } from './tyreModel';
 import type { CarState, RaceState } from './types';
 
 export interface TowerRow {
@@ -87,7 +87,7 @@ export function tyreOutlook(state: RaceState, car: CarState, pace = car.pace): T
   const wearPerLap = expectedWear({
     compound: car.tyre.compound,
     pace,
-    degradation: circuit.degradation,
+    degradation: circuitWear(circuit),
     wetness: state.weather.wetness,
     trackTemp: state.weather.trackTemp,
     safetyCar: state.safetyCar.active,

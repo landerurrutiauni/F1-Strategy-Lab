@@ -3,7 +3,7 @@
  * practice, (Sprint) qualifying, Sprint and Grand Prix sessions. Pure functions: every update
  * returns a new season state.
  */
-import { RACE_POINTS, SPRINT_LAPS, SPRINT_POINTS } from '../constants';
+import { RACE_POINTS, SPRINT_POINTS } from '../constants';
 import { CIRCUITS, TESTING_CIRCUIT, getCircuit } from '../data/circuits';
 import { DRIVERS, TEAMS, getDriver, isDriverId } from '../data/teams';
 import { advanceLap, getPlayerCar } from '../engine';
@@ -103,7 +103,7 @@ function failureRiskPerLap(teamRel: number, dev: number, laps: number): number {
  * Car effects for every driver in a session: team development (testing plus in-season form),
  * the player's weekend preparation and, in races, reliability and saved tyre sets.
  */
-export function sessionEffects(season: SeasonState, kind: 'practice' | 'quali' | 'race', laps: number = season.config.raceLaps): Record<string, CarEffects> {
+export function sessionEffects(season: SeasonState, kind: 'practice' | 'quali' | 'race', laps = 57): Record<string, CarEffects> {
   const out: Record<string, CarEffects> = {};
   const weekend = season.weekend;
   for (const driver of DRIVERS) {
@@ -256,7 +256,8 @@ export function raceConfigFor(season: SeasonState, startCompound: CompoundId): R
   if (!weekend || (session !== 'sprint' && session !== 'race')) return null;
   const grid = gridFor(season, session);
   if (!grid) return null;
-  const laps = session === 'sprint' ? SPRINT_LAPS[season.config.raceLaps] : season.config.raceLaps;
+  const circuit = getCircuit(weekend.circuitId);
+  const laps = session === 'sprint' ? circuit.sprintLaps ?? Math.ceil(100 / circuit.lengthKm) : circuit.laps;
   const effects = sessionEffects(season, 'race', laps);
   const saved = weekend.qualifying.quali?.savedSoftSets ?? 0;
   if (session === 'race' && saved > 0) {
@@ -434,7 +435,6 @@ export function isValidSeasonConfig(config: Partial<SeasonConfig> | null | undef
     !!config &&
     isDriverId(config.playerDriverId) &&
     (config.difficulty === 'easy' || config.difficulty === 'normal' || config.difficulty === 'hard') &&
-    (config.raceLaps === 10 || config.raceLaps === 15 || config.raceLaps === 20) &&
     typeof config.seed === 'number' &&
     Number.isInteger(config.seed) &&
     config.seed >= 1 &&

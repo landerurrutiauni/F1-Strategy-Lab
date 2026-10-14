@@ -30,7 +30,10 @@ import type { SeasonState } from '../game/season/types';
 import { BrokenStorage, MemoryStorage } from './helpers';
 import { getCircuit } from '../game/data/circuits';
 
-const newSeason = (seed = 2026) => createSeason({ playerDriverId: 'nor', difficulty: 'normal', raceLaps: 10, seed });
+const newSeason = (seed = 2026) => createSeason({ playerDriverId: 'nor', difficulty: 'normal', seed });
+
+/** Short races keep these tests fast; the season logic does not depend on race distance. */
+const quickRace = (config: NonNullable<ReturnType<typeof raceConfigFor>>) => createRace({ ...config, laps: 5 });
 
 /** Plays the current weekend to the flag with simple choices and the strategist in charge of races. */
 function playWeekend(season: SeasonState): SeasonState {
@@ -42,8 +45,7 @@ function playWeekend(season: SeasonState): SeasonState {
     if (session.startsWith('fp')) s = runPracticeSession(s, 'setup');
     else if (session === 'quali' || session === 'sprint-quali') s = completeQualifying(runQualifying(s, null));
     else {
-      const config = raceConfigFor(s, 'medium')!;
-      s = recordRace(s, simulateWithStrategist(createRace(config)), true);
+      s = recordRace(s, simulateWithStrategist(quickRace(raceConfigFor(s, 'medium')!)), true);
     }
     if (s.round !== round) break;
   }
@@ -124,6 +126,7 @@ describe('race weekends', () => {
     const config = raceConfigFor(s, 'medium')!;
     expect(config.grid).toEqual(s.weekend!.qualifying.quali!.grid);
     expect(config.session).toBe('race');
+    expect(config.laps).toBe(58);
     const race = createRace(config);
     expect(race.cars.map((c) => c.driverId)).toEqual(config.grid);
     expect(getPlayerCar(race).paceBonus).toBeLessThan(0);
@@ -141,8 +144,8 @@ describe('race weekends', () => {
     expect(currentSession(s)).toBe('sprint');
     const config = raceConfigFor(s, 'medium')!;
     expect(config.session).toBe('sprint');
-    expect(config.laps).toBe(5);
-    const sprint = simulateWithStrategist(createRace(config));
+    expect(config.laps).toBe(19);
+    const sprint = simulateWithStrategist(quickRace(config));
     expect(sprint.classification!.every((e) => e.penaltyTime === 0)).toBe(true);
     s = recordRace(s, sprint, true);
     expect(s.weekend!.sprint!.rows.filter((r) => r.points > 0).length).toBeLessThanOrEqual(8);

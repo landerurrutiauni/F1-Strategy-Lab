@@ -4,7 +4,7 @@ import { COMPOUND_ORDER, DRY_COMPOUNDS } from './data/tyres';
 import { wearSmoothness } from './lapTime';
 import { evaluateStrategies, type ProjectionOptions } from './projection';
 import type { Rng } from './rng';
-import { expectedWear, fastestCompoundFor, suitabilityGap } from './tyreModel';
+import { circuitWear, expectedWear, fastestCompoundFor, suitabilityGap } from './tyreModel';
 import type { CarState, CompoundId, PaceMode, PlayerDecision, RaceState, StrategyProfile } from './types';
 
 /**
@@ -96,7 +96,11 @@ export function decideAi(state: RaceState, car: CarState, rng: Rng, neighbours: 
 
   let plannedPitLap = car.plannedPitLap;
   let plannedCompound = car.plannedCompound;
-  const outlook = evaluateStrategies(state, car.id, spec.projection);
+  // The projection is the expensive part, so it only runs when the car needs a plan,
+  // is about to stop, or has an emergency.
+  let cached: ReturnType<typeof evaluateStrategies> | undefined;
+  const projection = () => (cached === undefined ? (cached = evaluateStrategies(state, car.id, spec.projection)) : cached);
+  const outlook = car.aiNeedsPlan ? projection() : null;
 
   if (outlook && car.aiNeedsPlan) {
     const first = outlook.best.stops[0];
@@ -118,14 +122,17 @@ export function decideAi(state: RaceState, car: CarState, rng: Rng, neighbours: 
   let box = plannedPitLap !== null && fromLap >= plannedPitLap && fromLap < state.totalLaps;
   let compound: CompoundId = plannedCompound ?? car.tyre.compound;
 
-  if (outlook && box && outlook.best.boxNow) compound = outlook.best.stops[0].compound;
+  if (box) {
+    const now = projection();
+    if (now?.best.boxNow) compound = now.best.stops[0].compound;
+  }
 
   // Emergencies: tyre about to fail, or badly wrong tyre for the conditions.
   const mismatch = suitabilityGap(car.tyre.compound, wetness);
   const emergency = fromLap < state.totalLaps && (car.tyre.wear >= 88 || mismatch > 6);
   if (emergency && !box) {
     box = true;
-    compound = outlook?.bestBoxNow?.stops[0].compound ?? fallbackCompound(car, wetness, lapsRemaining - 1);
+    compound = projection()?.bestBoxNow?.stops[0].compound ?? fallbackCompound(car, wetness, lapsRemaining - 1);
   }
 
   if (box && car.allocation[compound] <= 0) compound = fallbackCompound(car, wetness, lapsRemaining - 1);
@@ -159,7 +166,7 @@ function choosePace(car: CarState, state: RaceState, neighbours: Neighbours, pla
   const perLap = expectedWear({
     compound: car.tyre.compound,
     pace: 'standard',
-    degradation: circuit.degradation,
+    degradation: circuitWear(circuit),
     wetness: state.weather.wetness,
     trackTemp: state.weather.trackTemp,
     safetyCar: false,

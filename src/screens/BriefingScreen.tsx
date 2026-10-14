@@ -11,7 +11,7 @@ import { createRace, getPlayerCar, validateConfig } from '../game/engine';
 import { formatDelta, formatLapTime } from '../game/format';
 import { evaluateStrategies, highlightPlans, planLabel } from '../game/projection';
 import { randomSeed } from '../game/rng';
-import type { CompoundId, Difficulty, RaceConfig, RaceLength, ScenarioId, WeatherScenario } from '../game/types';
+import type { CompoundId, Difficulty, RaceConfig, ScenarioId, WeatherScenario } from '../game/types';
 import { describeScenarioForecast } from '../game/weather';
 
 interface BriefingScreenProps {
@@ -102,7 +102,7 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
             <div className="circuit-grid" ref={gridRef}>
               {CIRCUITS.map((c) => (
                 <label key={c.id} className={`circuit-card${c.id === config.circuitId ? ' is-checked' : ''}`}>
-                  <input type="radio" name="circuit" value={c.id} checked={c.id === config.circuitId} onChange={() => set('circuitId', c.id)} />
+                  <input type="radio" name="circuit" value={c.id} checked={c.id === config.circuitId} onChange={() => onChange({ ...config, circuitId: c.id, laps: c.laps })} />
                   <span className="circuit-card__meta">
                     <span>
                       Round {c.round}
@@ -137,13 +137,6 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
               <span className="team-dot" style={{ background: team.color }} aria-hidden="true" /> {team.name}, car rated {teamRank(team.id)} of {TEAMS.length}. Race engineer: {driver.engineer}.
             </p>
           </div>
-
-          <Segmented<RaceLength>
-            legend="Race distance"
-            value={config.laps as RaceLength}
-            onChange={(laps) => set('laps', laps)}
-            options={[10, 15, 20].map((n) => ({ value: n as RaceLength, label: `${n} laps`, hint: n === 15 ? 'Standard' : n === 10 ? 'Short' : 'Long' }))}
-          />
 
           <Segmented<WeatherScenario>
             legend="Weather"
@@ -256,6 +249,12 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
           </p>
           <p className="intel__summary">{circuit.summary}</p>
           <dl className="facts facts--grid">
+            <div>
+              <dt>Race distance</dt>
+              <dd>
+                {circuit.laps} laps, {(circuit.laps * circuit.lengthKm).toFixed(1)} km
+              </dd>
+            </div>
             <div>
               <dt>Lap length</dt>
               <dd>{circuit.lengthKm.toFixed(3)} km</dd>

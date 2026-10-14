@@ -52,7 +52,8 @@ describe('game flow', () => {
     await user.click(screen.getByRole('button', { name: 'Next lap' }));
     expect(screen.getAllByText(/Box, box: Medium to Hard/).length).toBeGreaterThan(0);
 
-    for (let lap = 3; lap <= 12; lap++) {
+    // The full Grand Prix distance (56 laps at Sepang), one line crossing at a time.
+    for (let lap = 3; lap <= 60; lap++) {
       const button = screen.queryByRole('button', { name: 'Next lap' });
       if (!button) break;
       await user.click(button);
@@ -64,7 +65,8 @@ describe('game flow', () => {
     expect(screen.getByText('Saved to your records.')).toBeInTheDocument();
     const stored = JSON.parse(window.localStorage.getItem(RECORDS_KEY)!);
     expect(stored.races).toHaveLength(1);
-  });
+    expect(stored.races[0].laps).toBe(56);
+  }, 60_000);
 
   it('supports keyboard shortcuts on the race screen', async () => {
     const user = userEvent.setup();
@@ -160,7 +162,7 @@ describe('season mode', () => {
     for (const fp of ['FP1', 'FP2', 'FP3']) await user.click(screen.getByRole('button', { name: `Run ${fp}` }));
     expect(screen.getByRole('table', { name: 'Practice 3 classification' })).toBeInTheDocument();
     await runQualifying(user);
-    expect(screen.getByRole('heading', { name: /Grand Prix: 15 laps/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Grand Prix: 58 laps/ })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Qualifying result' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Let the strategist run it/ }));
 

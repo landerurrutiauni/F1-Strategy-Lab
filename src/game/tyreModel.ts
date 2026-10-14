@@ -12,7 +12,7 @@ import {
   WEAR_PER_DEGREE,
 } from './constants';
 import { COMPOUNDS, COMPOUND_ORDER } from './data/tyres';
-import type { CompoundId, PaceMode } from './types';
+import type { CircuitSpec, CompoundId, PaceMode } from './types';
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -78,6 +78,17 @@ export function wetnessWearMultiplier(compound: CompoundId, wetness: number): nu
 
 export function temperatureWearMultiplier(trackTemp: number): number {
   return clamp(1 + (trackTemp - REFERENCE_TRACK_TEMP) * WEAR_PER_DEGREE, 0.7, 1.4);
+}
+
+/** Reference lap length (km) for the compound wear rates. */
+export const REFERENCE_LAP_KM = 5.3;
+
+/**
+ * Wear multiplier for a circuit: its abrasiveness times its lap length, so a lap of
+ * Spa (7 km) wears a tyre about twice as much as a lap of Monaco (3.3 km).
+ */
+export function circuitWear(circuit: Pick<CircuitSpec, 'degradation' | 'lengthKm'>): number {
+  return circuit.degradation * (circuit.lengthKm / REFERENCE_LAP_KM);
 }
 
 export interface WearInputs {

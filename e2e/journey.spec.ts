@@ -16,6 +16,13 @@ async function advance(page: Page) {
   await page.getByRole('button', { name: 'Next lap' }).click();
 }
 
+/** Steps lap by lap until the chequered flag (full Grand Prix distances). */
+async function runToFlag(page: Page) {
+  const seeResults = page.getByRole('button', { name: 'See results' });
+  for (let i = 0; i < 90 && !(await seeResults.isVisible()); i++) await advance(page);
+  await expect(seeResults).toBeVisible();
+}
+
 test('full race journey with a Safety Car, a pit stop and saved records', async ({ page }) => {
   const problems = watchForErrors(page);
   await page.goto('./?seed=2468');
@@ -28,7 +35,7 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
   await expect(page.getByRole('heading', { name: 'Italian Grand Prix' })).toBeVisible();
   await page.getByLabel('Your driver').selectOption('ver');
   await expect(page.getByText(/Race engineer: Gianpiero Lambiase/)).toBeVisible();
-  await page.locator('label.segmented__option', { hasText: '10 laps' }).click();
+  await expect(page.getByText('53 laps, 307.0 km')).toBeVisible();
   await page.locator('label.segmented__option', { hasText: 'Variable' }).click();
   await page.locator('label.compound', { hasText: 'Soft' }).click();
   await page.getByText('Seed and event drills').click();
@@ -57,11 +64,8 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
   await expect(page.locator('.feed__title', { hasText: 'Box, box: Soft to Hard' })).toBeVisible();
 
   // Run to the flag.
-  for (let i = 0; i < 12; i++) {
-    const seeResults = page.getByRole('button', { name: 'See results' });
-    if (await seeResults.isVisible()) break;
-    await advance(page);
-  }
+  // Run to the flag over Monza's full 53 laps, a line crossing at a time.
+  await runToFlag(page);
   await expect(page.getByText(/Result saved to your records/)).toBeVisible();
   await page.screenshot({ path: 'test-results/race-finished.png' });
   await page.getByRole('button', { name: 'See results' }).click();
@@ -83,11 +87,15 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
 
 test('weather drill: rain arrives and the radar and projections react', async ({ page }) => {
   const problems = watchForErrors(page);
-  await page.goto('./?seed=777&circuit=spa&weather=variable&scenario=storm&laps=15&tyre=medium');
+  await page.goto('./?seed=777&circuit=spa&weather=variable&scenario=storm&tyre=medium');
   await page.getByRole('button', { name: 'New race' }).click();
   await page.getByRole('button', { name: 'Start race' }).click();
-  for (let i = 0; i < 6; i++) await advance(page);
-  await expect(page.locator('.feed__title', { hasText: /starts to fall|getting heavier|conditions changing/ }).first()).toBeVisible();
+  // The storm arrives about a third of the way into Spa's 44 laps.
+  const rain = page.locator('.feed__title', { hasText: /starts to fall|getting heavier|conditions changing/ }).first();
+  for (let i = 0; i < 20 && !(await rain.isVisible()); i++) await advance(page);
+  await expect(rain).toBeVisible();
+  await advance(page);
+  await advance(page);
   await expect(page.locator('.weather-chip')).toContainText(/rain/i);
   await page.screenshot({ path: 'test-results/weather-drill.png' });
   // Unless the car has already pitted for treaded tyres, the tyre panel warns about slicks in the wet.
@@ -98,7 +106,7 @@ test('weather drill: rain arrives and the radar and projections react', async ({
 
 test('the same seed from a shared link replays the same race', async ({ page }) => {
   const run = async () => {
-    await page.goto('./?seed=4321&circuit=suzuka&laps=10');
+    await page.goto('./?seed=4321&circuit=suzuka');
     await page.getByRole('button', { name: 'New race' }).click();
     await expect(page.getByLabel('Race seed')).toHaveValue('4321');
     await page.getByRole('button', { name: 'Start race' }).click();
@@ -113,10 +121,10 @@ test('the same seed from a shared link replays the same race', async ({ page }) 
 
 test('live race: lights out, cars lap the circuit on their own and the Safety Car pauses the race', async ({ page }) => {
   const problems = watchForErrors(page);
-  await page.goto('./?seed=2468&circuit=monza&laps=10&scenario=safety-car-early');
+  await page.goto('./?seed=2468&circuit=monza&scenario=safety-car-early');
   await page.getByRole('button', { name: 'New race' }).click();
   await page.getByRole('button', { name: 'Start race' }).click();
-  await page.getByRole('radio', { name: 'Speed 8 times' }).check({ force: true });
+  await page.getByRole('radio', { name: 'Speed 64 times' }).check({ force: true });
   await page.getByRole('button', { name: 'Lights out' }).click();
   await expect(page.getByRole('img', { name: /red lights on/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 8000 });
@@ -130,12 +138,14 @@ test('live race: lights out, cars lap the circuit on their own and the Safety Ca
   // Laps go by without pressing anything, until the Safety Car pauses the race for a call.
   await expect(page.locator('.transport__paused')).toContainText('Safety Car deployed', { timeout: 30_000 });
   await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
-  await expect(page.locator('.race-header__lap')).toHaveAttribute('aria-label', 'Lap 4 of 10');
+  await expect(page.locator('.race-header__lap')).toHaveAttribute('aria-label', 'Lap 4 of 53');
   await page.screenshot({ path: 'test-results/live-race.png' });
 
-  // Resume and let it run to the flag.
+  // Resume for a while at 64× (a lap every second or so), then step to the flag.
   await page.getByRole('button', { name: 'Resume' }).click();
-  await expect(page.getByRole('button', { name: 'See results' })).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('.race-header__lap')).not.toHaveAttribute('aria-label', 'Lap 4 of 53', { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await runToFlag(page);
   expect(problems).toEqual([]);
 });
 
@@ -171,7 +181,6 @@ test('season: testing, a weekend and a live Grand Prix that counts for the champ
   await page.goto('./');
   await page.getByRole('button', { name: /2026 season/ }).click();
   await page.getByLabel('Your driver').selectOption('lec');
-  await page.locator('label.segmented__option', { hasText: /^10 laps/ }).click();
   await page.locator('summary', { hasText: 'Season seed' }).click();
   await page.getByLabel('Season seed').fill('31337');
   await page.getByRole('button', { name: 'Start the season' }).click();
@@ -190,15 +199,11 @@ test('season: testing, a weekend and a live Grand Prix that counts for the champ
     }
     await page.getByRole('button', { name: /^Run Q[123]$/ }).click();
   }
-  await expect(page.getByRole('heading', { name: /Grand Prix: 10 laps/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Grand Prix: 58 laps/ })).toBeVisible();
   await page.getByRole('button', { name: 'Go to the pit wall' }).click();
 
   await expect(page.getByRole('heading', { name: 'Lap 1 call' })).toBeVisible();
-  for (let i = 0; i < 12; i++) {
-    const seeResults = page.getByRole('button', { name: 'See results' });
-    if (await seeResults.isVisible()) break;
-    await advance(page);
-  }
+  await runToFlag(page);
   await page.getByRole('button', { name: 'See results' }).click();
   await expect(page.getByRole('heading', { name: 'Australian Grand Prix result' })).toBeVisible();
   await page.getByRole('button', { name: 'Continue season' }).click();
