@@ -130,13 +130,13 @@ All performance values (team pace, driver ratings, circuit characteristics, reli
 
 The site is fully static and uses relative asset paths (`base: './'`), so it works from any Pages URL.
 
-`.github/workflows/deploy.yml` runs on every push to `main` and on manual dispatch. It installs dependencies with `npm ci`, runs lint, type-check, unit tests, the build and the Playwright end-to-end tests, then uploads `dist/` with `actions/upload-pages-artifact` and publishes it with `actions/deploy-pages`. Permissions are limited to `contents: read`, `pages: write` and `id-token: write`.
+`.github/workflows/deploy.yml` runs on every push to the repository's default branch (`claude/f1-strategy-lab-game-s91ao4`) or `main`, and on manual dispatch. It installs dependencies with `npm ci`, runs lint, type-check, unit tests, the build and the Playwright end-to-end tests, then uploads `dist/` with `actions/upload-pages-artifact` and publishes it with `actions/deploy-pages`. Permissions are limited to `contents: read`, `pages: write` and `id-token: write`.
 
-One-time setup in the repository:
+One-time setup (needs a repository admin; a workflow token is not allowed to switch Pages on):
 
-1. Merge the work into `main` (the workflow only deploys from `main`).
-2. In **Settings → Pages**, set **Source** to **GitHub Actions**.
-3. Push to `main` or run the workflow from the **Actions** tab. The deployment job prints the site URL, normally `https://<owner>.github.io/<repository>/`.
+1. In **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**.
+2. In the **Actions** tab, open the latest **Deploy to GitHub Pages** run and choose **Re-run all jobs** (or push a new commit).
+3. The site is then published at `https://landerurrutiauni.github.io/F1-Strategy-Lab/`; the deploy job also prints the URL.
 
 ## Limitations
 
