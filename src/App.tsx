@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CIRCUITS, getCircuit, nextRound } from './game/data/circuits';
-import { DEFAULT_PLAYER_DRIVER_ID, isDriverId } from './game/data/teams';
+import { DEFAULT_PLAYER_DRIVER_ID, DRIVERS, getDriver, isDriverId } from './game/data/teams';
 import { isCompoundId } from './game/data/tyres';
 import { loadActiveRace } from './game/persistence';
 import { randomSeed } from './game/rng';
@@ -57,12 +57,19 @@ function initialConfig(): RaceConfig {
   const difficulty = params.get('difficulty');
   const scenario = params.get('scenario') as ScenarioId | null;
   const circuitId = circuit && CIRCUITS.some((c) => c.id === circuit) ? circuit : nextRound().id;
+  const teamParam = params.get('team');
+  const teamLead = DRIVERS.find((d) => d.teamId === teamParam)?.id;
+  const lead = isDriverId(driver) ? driver : teamLead ?? DEFAULT_PLAYER_DRIVER_ID;
+  const startCompound = isCompoundId(start) ? start : 'medium';
   return {
     circuitId,
-    playerDriverId: isDriverId(driver) ? driver : DEFAULT_PLAYER_DRIVER_ID,
+    playerDriverId: lead,
+    // The quick race manages both cars of the lead driver's team.
+    managedDriverIds: [lead, ...DRIVERS.filter((d) => d.teamId === getDriver(lead).teamId && d.id !== lead).map((d) => d.id)],
+    startCompounds: Object.fromEntries(DRIVERS.filter((d) => d.teamId === getDriver(lead).teamId).map((d) => [d.id, startCompound])),
     // Every race runs its circuit's official distance.
     laps: getCircuit(circuitId).laps,
-    startCompound: isCompoundId(start) ? start : 'medium',
+    startCompound,
     weather: weather === 'variable' || weather === 'rainy' ? weather : 'dry',
     difficulty: difficulty === 'easy' || difficulty === 'hard' ? difficulty : 'normal',
     seed: isValidSeed(seed) ? seed : randomSeed(),

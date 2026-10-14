@@ -7,7 +7,8 @@ import { TyreBadge } from '../components/TyreBadge';
 import { COMPOUNDS } from '../game/data/tyres';
 import { getCircuit } from '../game/data/circuits';
 import { getDriver, getTeam } from '../game/data/teams';
-import { getPlayerCar, playerEngineer } from '../game/engine';
+import { getManagedCars, getPlayerCar, playerEngineer } from '../game/engine';
+import { Segmented } from '../components/Segmented';
 import { formatDelta, formatLapTime, formatRaceTime } from '../game/format';
 import { rateStrategy } from '../game/rating';
 import type { RaceState } from '../game/types';
@@ -24,9 +25,12 @@ interface ResultsScreenProps {
 
 export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu, onContinueSeason }: ResultsScreenProps) {
   const [showSummary, setShowSummary] = useState(false);
-  const rating = useMemo(() => rateStrategy(race), [race]);
+  // With both cars of a team managed, the page follows the car picked here.
+  const managed = getManagedCars(race);
+  const [focusId, setFocusId] = useState(managed[0].id);
+  const rating = useMemo(() => rateStrategy(race, focusId), [race, focusId]);
   const circuit = getCircuit(race.config.circuitId);
-  const player = getPlayerCar(race);
+  const player = race.cars.find((c) => c.id === focusId) ?? getPlayerCar(race);
   const driver = getDriver(player.driverId);
   const classification = race.classification ?? [];
   const entry = classification.find((e) => e.carId === player.id);
@@ -47,6 +51,20 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu, onContinu
       </header>
 
       <main id="main" tabIndex={-1} className="results__layout">
+        {managed.length > 1 && (
+          <Segmented<string>
+            legend="Car"
+            hideLegend
+            className="results__car"
+            value={focusId}
+            onChange={setFocusId}
+            options={managed.map((c) => {
+              const e = classification.find((x) => x.carId === c.id);
+              const label = `${getDriver(c.driverId).name}: ${e?.status === 'finished' ? 'P' + e.position : 'DNF'}`;
+              return { value: c.id, label, ariaLabel: label };
+            })}
+          />
+        )}
         <section className="results__hero" aria-labelledby="result-title">
           <div className="results__position">
             <span className="results__pos-label">Finished</span>
@@ -184,7 +202,7 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu, onContinu
             Tyre strategies
           </h2>
           <p className="results__your-stints">
-            Your stints:{' '}
+            {getDriver(player.driverId).code} stints:{' '}
             {player.stints
               .filter((s) => s.laps > 0)
               .map((s, i) => (
@@ -273,7 +291,7 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu, onContinu
               Race summary
             </h2>
             <div className="panel">
-              <h3 className="intel__sub">Your laps</h3>
+              <h3 className="intel__sub">{driver.name}: lap by lap</h3>
               <div className="table-scroll">
                 <table className="table table--compact">
                   <thead>
@@ -312,7 +330,7 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu, onContinu
                 </table>
               </div>
             </div>
-            <RaceFeed events={race.events} engineer={playerEngineer(race)} currentLap={-1} limit={500} />
+            <RaceFeed events={race.events} engineer={(carId) => playerEngineer(race, carId)} currentLap={-1} limit={500} />
           </section>
         )}
       </main>

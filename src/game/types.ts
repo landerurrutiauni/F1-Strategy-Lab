@@ -309,6 +309,10 @@ export interface RaceConfig {
   carEffects?: Record<string, CarEffects>;
   /** Championship round this race belongs to (season mode). */
   seasonRound?: number;
+  /** Every driver whose strategy the player runs (both cars of a team); defaults to the lead driver. */
+  managedDriverIds?: string[];
+  /** Starting tyre for each managed driver (falls back to `startCompound`). */
+  startCompounds?: Record<string, CompoundId>;
 }
 
 export interface ScheduledEvents {
@@ -321,6 +325,8 @@ export interface ScheduledEvents {
 
 export interface DecisionRecord {
   lap: number;
+  /** The managed car the call was for (absent in older saves: the lead car). */
+  carId?: string;
   decision: PlayerDecision;
   /** Estimated seconds lost versus the best plan available at the time (≥ 0). */
   regret: number;
@@ -375,6 +381,8 @@ export interface RaceState {
   preRaceProjection: number;
   /** Lap-by-lap projected elapsed time for the pre-race best plan. */
   preRacePlanElapsed: number[];
+  /** Pre-race best-plan trace for each managed car. */
+  preRacePlans?: Record<string, number[]>;
   preRacePlanLabel: string;
 }
 

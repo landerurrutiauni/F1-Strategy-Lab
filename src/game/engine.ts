@@ -77,6 +77,11 @@ export function validateConfig(config: Partial<RaceConfig> | null | undefined): 
   if (!config || typeof config !== 'object') return ['Race configuration is missing.'];
   if (!CIRCUITS.some((c) => c.id === config.circuitId)) errors.push('Choose a circuit.');
   if (!isDriverId(config.playerDriverId)) errors.push('Choose the driver you will run strategy for.');
+  if (config.managedDriverIds !== undefined) {
+    const ids = config.managedDriverIds;
+    if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => !isDriverId(id)) || !ids.includes(config.playerDriverId as string))
+      errors.push('The cars you manage must include your lead driver.');
+  }
   if (config.session !== undefined && config.session !== 'race' && config.session !== 'sprint') errors.push('Unknown session.');
   if (typeof config.laps !== 'number' || !Number.isInteger(config.laps) || config.laps < MIN_RACE_LAPS || config.laps > MAX_RACE_LAPS)
     errors.push(`Race distance must be between ${MIN_RACE_LAPS} and ${MAX_RACE_LAPS} laps.`);
@@ -112,9 +117,15 @@ function pushEvent(
   state.events.push({ id: state.nextEventId++, lap, kind, severity, title, detail, ...extra });
 }
 
-/** Name of the player's race engineer (the voice on the radio). */
-export function playerEngineer(state: RaceState): string {
-  return getDriver(state.config.playerDriverId).engineer;
+/** Drivers whose strategy the player runs (one car, or both cars of a team). */
+export function managedDriverIds(config: Pick<RaceConfig, 'playerDriverId' | 'managedDriverIds'>): string[] {
+  return config.managedDriverIds?.length ? config.managedDriverIds : [config.playerDriverId];
+}
+
+/** Name of a managed car's race engineer (the voice on the radio); the lead car by default. */
+export function playerEngineer(state: RaceState, carId?: string): string {
+  const car = carId ? state.cars.find((c) => c.id === carId) : undefined;
+  return getDriver(car?.driverId ?? state.config.playerDriverId).engineer;
 }
 
 const code = (car: CarState) => getDriver(car.driverId).code;
@@ -135,10 +146,17 @@ function assignPositions(state: RaceState) {
   });
 }
 
+/** The lead managed car. */
 export function getPlayerCar(state: RaceState): CarState {
-  const car = state.cars.find((c) => c.isPlayer);
+  const car = state.cars.find((c) => c.driverId === state.config.playerDriverId) ?? state.cars.find((c) => c.isPlayer);
   if (!car) throw new RaceEngineError('Player car missing from race state.');
   return car;
+}
+
+/** Every car the player manages, lead car first. */
+export function getManagedCars(state: RaceState): CarState[] {
+  const lead = getPlayerCar(state);
+  return [lead, ...state.cars.filter((c) => c.isPlayer && c.id !== lead.id)];
 }
 
 export function createRace(config: RaceConfig): RaceState {
@@ -170,18 +188,22 @@ export function createRace(config: RaceConfig): RaceState {
   // The grid comes from a qualifying session when given; otherwise car + driver pace plus a
   // little variation decides it.
   const effects = config.carEffects ?? {};
+  const managed = new Set(managedDriverIds(config));
   const quali = config.grid
-    ? config.grid.map((id) => ({ driver: getDriver(id), isPlayer: id === config.playerDriverId }))
+    ? config.grid.map((id) => ({ driver: getDriver(id), isPlayer: managed.has(id) }))
     : DRIVERS.map((driver) => {
-        const isPlayer = driver.id === config.playerDriverId;
+        const isPlayer = managed.has(driver.id);
         const offset = carPaceOffset({ teamId: driver.teamId, driverId: driver.id, isPlayer, paceBonus: effects[driver.id]?.pace }, config.difficulty);
         return { driver, isPlayer, time: offset + rng.normal(0, 0.22) };
       }).sort((a, b) => a.time - b.time);
 
   const cars: CarState[] = quali.map(({ driver, isPlayer }, index) => {
     const team = getTeam(driver.teamId);
+    const ownStart = config.startCompounds?.[driver.id];
     const compound: CompoundId = isPlayer
-      ? config.startCompound
+      ? ownStart && isCompoundId(ownStart)
+        ? ownStart
+        : config.startCompound
       : chooseStartCompound(team.profile, wetness, laps, rng);
     const allocation = Object.fromEntries(COMPOUND_ORDER.map((c) => [c, COMPOUNDS[c].allocation])) as Record<
       CompoundId,
@@ -272,24 +294,47 @@ export function createRace(config: RaceConfig): RaceState {
     pushEvent(state, 0, 'weather', 'warning', `${rainLabel(state.weather.rain)} at the start`, 'The track is wet. Check that your tyres suit the conditions.', { major: true });
   }
 
-  const outlook = evaluateStrategies(state, player.id);
-  if (outlook) {
-    state.preRaceProjection = outlook.best.totalTime;
-    state.preRacePlanElapsed = tracePlan(state, player.id, outlook.best.stops);
-    state.preRacePlanLabel = planLabel(outlook.best.stops);
+  state.preRacePlans = {};
+  for (const car of getManagedCars(state)) {
+    const outlook = evaluateStrategies(state, car.id);
+    if (!outlook) continue;
+    const trace = tracePlan(state, car.id, outlook.best.stops);
+    state.preRacePlans[car.id] = trace;
+    if (car.id === player.id) {
+      state.preRaceProjection = outlook.best.totalTime;
+      state.preRacePlanElapsed = trace;
+      state.preRacePlanLabel = planLabel(outlook.best.stops);
+    }
   }
   return state;
 }
 
-export function defaultDecision(state: RaceState): PlayerDecision {
-  const car = state.cars.find((c) => c.isPlayer);
+/** Keep the current pace and tyres (the lead car unless another managed car is given). */
+export function defaultDecision(state: RaceState, carId?: string): PlayerDecision {
+  const car = carId ? state.cars.find((c) => c.id === carId) : state.cars.find((c) => c.driverId === state.config.playerDriverId) ?? state.cars.find((c) => c.isPlayer);
   return { pace: car?.pace ?? 'standard', box: false, compound: car?.tyre.compound ?? 'medium', boost: false };
 }
 
-/** Returns a reason the decision is invalid, or null when it can be applied. */
-export function validateDecision(state: RaceState, decision: PlayerDecision): string | null {
+/** Decisions for the managed cars, keyed by car id. A single decision applies to the lead car. */
+export type DecisionInput = PlayerDecision | Record<string, PlayerDecision>;
+
+function isSingleDecision(input: DecisionInput): input is PlayerDecision {
+  return typeof (input as PlayerDecision).pace === 'string';
+}
+
+/** One decision per managed car; cars without one keep their pace and stay out. */
+export function decisionsFor(state: RaceState, input: DecisionInput): Record<string, PlayerDecision> {
+  const lead = getPlayerCar(state);
+  const given: Record<string, PlayerDecision> = isSingleDecision(input) ? { [lead.id]: input } : input;
+  const out: Record<string, PlayerDecision> = {};
+  for (const car of getManagedCars(state)) out[car.id] = given[car.id] ?? defaultDecision(state, car.id);
+  return out;
+}
+
+/** Returns a reason the decision is invalid, or null when it can be applied (lead car unless `carId` is given). */
+export function validateDecision(state: RaceState, decision: PlayerDecision, carId?: string): string | null {
   if (state.phase !== 'running') return 'The race has finished.';
-  const car = getPlayerCar(state);
+  const car = carId ? state.cars.find((c) => c.id === carId) ?? getPlayerCar(state) : getPlayerCar(state);
   if (car.status !== 'running') return null; // decisions are ignored once retired
   if (!VALID_PACE.includes(decision.pace)) return 'Unknown pace mode.';
   if (!isCompoundId(decision.compound)) return 'Unknown tyre compound.';
@@ -324,8 +369,7 @@ function logistic(x: number) {
   return 1 / (1 + Math.exp(-x));
 }
 
-function recordPlayerDecision(state: RaceState, decision: PlayerDecision): DecisionRecord | null {
-  const player = getPlayerCar(state);
+function recordPlayerDecision(state: RaceState, decision: PlayerDecision, player: CarState): DecisionRecord | null {
   if (player.status !== 'running') return null;
   const outlook = evaluateStrategies(state, player.id);
   if (!outlook) return null;
@@ -336,6 +380,7 @@ function recordPlayerDecision(state: RaceState, decision: PlayerDecision): Decis
   const chosenTime = chosen?.totalTime ?? outlook.best.totalTime;
   return {
     lap: state.lap + 1,
+    carId: player.id,
     decision: { ...decision },
     regret: Math.max(0, chosenTime - outlook.best.totalTime),
     gainVsAlternative: alternative ? alternative.totalTime - chosenTime : 0,
@@ -354,11 +399,15 @@ function recordPlayerDecision(state: RaceState, decision: PlayerDecision): Decis
  * `decision` applies to the player's car for the upcoming lap; boxing means the car
  * pits at the end of that lap and starts the following lap on the new set.
  */
-export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceState {
-  const problem = validateDecision(previous, decision);
-  if (problem) throw new RaceEngineError(problem);
-
-  const decisionRecord = recordPlayerDecision(previous, decision);
+export function advanceLap(previous: RaceState, input: DecisionInput): RaceState {
+  const given = decisionsFor(previous, input);
+  for (const [carId, decision] of Object.entries(given)) {
+    const problem = validateDecision(previous, decision, carId);
+    if (problem) throw new RaceEngineError(problem);
+  }
+  const decisionRecords = getManagedCars(previous)
+    .map((car) => recordPlayerDecision(previous, given[car.id], car))
+    .filter((r): r is DecisionRecord => r !== null);
   const state: RaceState = structuredClone(previous);
   const rng = createRng(state.rngState);
   const circuit = getCircuit(state.config.circuitId);
@@ -368,7 +417,9 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
   const wetness = state.weather.wetness;
   const trackTemp = state.weather.trackTemp;
   const player = getPlayerCar(state);
-  if (decisionRecord) state.decisionLog.push(decisionRecord);
+  // With both cars of a team the feed names the driver instead of saying "you".
+  const team = state.cars.filter((c) => c.isPlayer).length > 1;
+  state.decisionLog.push(...decisionRecords);
 
   const roadOrder = state.cars.filter((c) => c.status === 'running').sort((a, b) => a.elapsed - b.elapsed);
   const prevPositions = new Map(state.cars.map((c) => [c.id, c.position]));
@@ -377,7 +428,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
   const decisions = new Map<string, PlayerDecision>();
   roadOrder.forEach((car, index) => {
     if (car.isPlayer) {
-      decisions.set(car.id, { ...decision });
+      decisions.set(car.id, { ...given[car.id] });
       return;
     }
     const neighbours: Neighbours = {
@@ -506,7 +557,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
             lap,
             'incident',
             car.isPlayer ? 'warning' : 'info',
-            car.isPlayer ? 'Mistake at turn ' + turn : `${code(car)} runs wide`,
+            car.isPlayer ? `${team ? code(car) + ': mistake' : 'Mistake'} at turn ${turn}` : `${code(car)} runs wide`,
             `${car.isPlayer ? 'Lock-up and a trip over the run-off' : `${getDriver(car.driverId).name} ran wide at turn ${turn}`}: ${fmt(loss)} lost and a flat-spotted tyre.${car.isPlayer && pace === 'push' ? ' Pushing raises the risk of mistakes.' : ''}`,
             { carId: car.id, radio: car.isPlayer ? 'OK, we lost some time there. Reset and keep it clean.' : undefined },
           );
@@ -596,18 +647,23 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
             w.passed = true;
             if (w.car.isPlayer || b.car.isPlayer) {
               const playerAttacking = w.car.isPlayer;
+              const teamBattle = w.car.isPlayer && b.car.isPlayer;
               pushEvent(
                 state,
                 lap,
                 'overtake',
-                playerAttacking ? 'good' : 'warning',
-                playerAttacking ? `You pass ${code(b.car)}` : `${code(w.car)} passes you`,
+                teamBattle ? 'info' : playerAttacking ? 'good' : 'warning',
+                team ? `${code(w.car)} passes ${code(b.car)}` : playerAttacking ? `You pass ${code(b.car)}` : `${code(w.car)} passes you`,
                 playerAttacking
                   ? `A ${advantage > 0 ? advantage.toFixed(1) + ' s' : 'small'} pace advantage${w.boost ? ' and the boost' : ''} did the job.`
                   : `${getDriver(w.car.driverId).name} had the pace${w.boost ? ' and used the boost' : ''}.`,
                 {
-                  carId: w.car.id,
-                  radio: playerAttacking ? `Good move. ${code(b.car)} is behind, keep pushing.` : `${code(w.car)} is through. Stay with him, the race is long.`,
+                  carId: playerAttacking ? w.car.id : b.car.id,
+                  radio: teamBattle
+                    ? undefined
+                    : playerAttacking
+                      ? `Good move. ${code(b.car)} is behind, keep pushing.`
+                      : `${code(w.car)} is through. Stay with him, the race is long.`,
                 },
               );
             }
@@ -620,7 +676,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
                 'overtake',
                 'info',
                 `Stuck behind ${code(b.car)}`,
-                `You were ${advantage.toFixed(1)} s quicker but could not get past. ${circuit.name} needs about ${circuit.overtakeDelta.toFixed(1)} s of pace advantage.`,
+                `${team ? code(w.car) + ' was' : 'You were'} ${advantage.toFixed(1)} s quicker but could not get past. ${circuit.name} needs about ${circuit.overtakeDelta.toFixed(1)} s of pace advantage.`,
                 { carId: w.car.id },
               );
             }
@@ -700,7 +756,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
           lap,
           'pit',
           w.pitNote?.startsWith('Rapid') ? 'good' : w.pitNote ? 'warning' : 'info',
-          `Box, box: ${COMPOUNDS[from].name} to ${COMPOUNDS[to].name}`,
+          `Box, box${team ? ' ' + code(car) : ''}: ${COMPOUNDS[from].name} to ${COMPOUNDS[to].name}`,
           `Stationary ${w.stationary.toFixed(1)} s, ${fmt(w.pitTime)} total${sc ? ' under the Safety Car' : ''}.${w.pitNote ? ' ' + w.pitNote + '.' : ''}`,
           { carId: car.id, major: true, radio: `Box, box. ${COMPOUNDS[to].name}s going on.` },
         );
@@ -728,10 +784,13 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
     const last = car.laps[car.laps.length - 1];
     if (last && last.lap === lap) last.position = car.position;
   }
-  if (player.status === 'running') {
-    const before = prevPositions.get(player.id) ?? player.position;
-    if (player.position < before && !state.events.some((e) => e.lap === lap && e.kind === 'overtake' && e.severity === 'good')) {
-      pushEvent(state, lap, 'info', 'good', `Up to P${player.position}`, `Gained ${before - player.position} place${before - player.position > 1 ? 's' : ''} this lap.`, { carId: player.id });
+  for (const car of state.cars) {
+    if (!car.isPlayer || car.status !== 'running') continue;
+    const before = prevPositions.get(car.id) ?? car.position;
+    if (car.position < before && !state.events.some((e) => e.lap === lap && e.kind === 'overtake' && e.severity === 'good' && e.carId === car.id)) {
+      pushEvent(state, lap, 'info', 'good', `${team ? code(car) + ' up' : 'Up'} to P${car.position}`, `Gained ${before - car.position} place${before - car.position > 1 ? 's' : ''} this lap.`, {
+        carId: car.id,
+      });
     }
   }
 
@@ -827,7 +886,10 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
 
   state.lap = lap;
   if (lap === state.totalLaps - 1 && player.status === 'running') {
-    pushEvent(state, lap, 'info', 'info', 'Final lap next', `P${player.position} with one lap to go.`, {
+    const running = getManagedCars(state).filter((c) => c.status === 'running');
+    const where = team ? running.map((c) => `${code(c)} P${c.position}`).join(', ') : `P${player.position}`;
+    pushEvent(state, lap, 'info', 'info', 'Final lap next', `${where} with one lap to go.`, {
+      carId: player.id,
       radio: player.position === 1 ? 'Last lap. Bring it home, no risks.' : 'Final lap. Everything you have got.',
     });
   }
@@ -838,8 +900,17 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
     const winner = state.classification[0];
     const playerEntry = state.classification.find((e) => e.carId === player.id);
     for (const entry of state.classification) {
-      if (entry.penaltyTime > 0 && entry.carId === player.id) {
-        pushEvent(state, lap, 'info', 'danger', 'Compound rule penalty', `You did not use two different dry compounds: +${entry.penaltyTime} s added to your race time.`, { major: true });
+      const car = state.cars.find((c) => c.id === entry.carId);
+      if (entry.penaltyTime > 0 && car?.isPlayer) {
+        pushEvent(
+          state,
+          lap,
+          'info',
+          'danger',
+          'Compound rule penalty',
+          `${team ? code(car) + ' did' : 'You did'} not use two different dry compounds: +${entry.penaltyTime} s added to the race time.`,
+          { major: true, carId: car.id },
+        );
       }
     }
     const winnerCar = state.cars.find((c) => c.id === winner.carId)!;
@@ -849,13 +920,21 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
       'finish',
       playerEntry?.position === 1 ? 'good' : 'info',
       'Chequered flag',
-      playerEntry?.status === 'finished'
-        ? playerEntry.position === 1
-          ? 'You win the race!'
-          : `${getDriver(winnerCar.driverId).name} wins. You finish P${playerEntry.position}.`
-        : `${getDriver(winnerCar.driverId).name} wins. Your car did not finish.`,
+      team
+        ? `${getDriver(winnerCar.driverId).name} wins. ${getManagedCars(state)
+            .map((c) => {
+              const e = state.classification!.find((x) => x.carId === c.id);
+              return `${code(c)} ${e?.status === 'finished' ? 'P' + e.position : 'DNF'}`;
+            })
+            .join(', ')}.`
+        : playerEntry?.status === 'finished'
+          ? playerEntry.position === 1
+            ? 'You win the race!'
+            : `${getDriver(winnerCar.driverId).name} wins. You finish P${playerEntry.position}.`
+          : `${getDriver(winnerCar.driverId).name} wins. Your car did not finish.`,
       {
         major: true,
+        carId: player.id,
         radio:
           playerEntry?.status !== 'finished'
             ? undefined

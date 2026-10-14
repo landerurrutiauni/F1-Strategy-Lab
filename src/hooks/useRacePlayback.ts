@@ -45,9 +45,9 @@ interface Options {
 }
 
 /** A decision the engine will accept: drops a stop or boost that is no longer allowed. */
-function legalDecision(state: RaceState, decision: PlayerDecision): PlayerDecision {
-  if (!validateDecision(state, decision)) return decision;
-  const car = getPlayerCar(state);
+function legalDecision(state: RaceState, decision: PlayerDecision, carId: string): PlayerDecision {
+  if (!validateDecision(state, decision, carId)) return decision;
+  const car = state.cars.find((c) => c.id === carId) ?? getPlayerCar(state);
   const fixed = { ...decision };
   if (fixed.box && (state.lap + 1 >= state.totalLaps || car.allocation[fixed.compound] <= 0)) fixed.box = false;
   if (fixed.boost && (state.safetyCar.active || car.battery < BOOST_COST)) fixed.boost = false;
@@ -56,11 +56,11 @@ function legalDecision(state: RaceState, decision: PlayerDecision): PlayerDecisi
 
 /** Key moments that pause the race (when the player wants that). */
 export function pauseReasonFor(state: RaceState): string | null {
-  const player = getPlayerCar(state);
+  const managed = new Set(state.cars.filter((c) => c.isPlayer).map((c) => c.id));
   const events = state.events.filter((e) => e.lap === state.lap);
   const sc = events.find((e) => e.kind === 'safety-car' && /deployed/i.test(e.title));
   if (sc) return sc.title;
-  const mine = events.find((e) => e.carId === player.id && e.severity === 'danger');
+  const mine = events.find((e) => e.carId !== undefined && managed.has(e.carId) && e.severity === 'danger');
   if (mine) return mine.title;
   const weather = events.find((e) => e.kind === 'weather' && e.major);
   if (weather) return weather.title;
@@ -142,7 +142,9 @@ export function useRacePlayback(controller: RaceController & { race: RaceState }
     const ctl = controllerRef.current;
     const current = engineRef.current;
     if (ctl.race !== current || current.phase !== 'running') return null;
-    const next = ctl.advance(legalDecision(current, ctl.decision));
+    const legal: Record<string, PlayerDecision> = {};
+    for (const [carId, d] of Object.entries(ctl.decisions)) legal[carId] = legalDecision(current, d, carId);
+    const next = ctl.advance(legal);
     if (!next) return null;
     engineRef.current = next;
     timelinesRef.current = buildTimelines(next);

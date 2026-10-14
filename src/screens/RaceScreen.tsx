@@ -11,12 +11,14 @@ import { Telemetry } from '../components/race/Telemetry';
 import { TyrePanel } from '../components/race/TyrePanel';
 import { WeatherRadar } from '../components/race/WeatherRadar';
 import { TimingTower } from '../components/TimingTower';
-import { BOOST_COST } from '../game/constants';
+import { BOOST_COST, PACE_MODES } from '../game/constants';
+import { COMPOUNDS } from '../game/data/tyres';
+import { TyreBadge } from '../components/TyreBadge';
 import { getCircuit } from '../game/data/circuits';
 import { getDriver, getTeam } from '../game/data/teams';
-import { getPlayerCar, playerEngineer } from '../game/engine';
+import { defaultDecision, getManagedCars, getPlayerCar, playerEngineer } from '../game/engine';
 import { estimateRejoin, evaluateStrategies } from '../game/projection';
-import type { PaceMode, RaceState } from '../game/types';
+import type { CarState, PaceMode, PlayerDecision, RaceState } from '../game/types';
 import { towerRows } from '../game/view';
 import type { RaceController } from '../hooks/useRaceController';
 import { useRacePlayback } from '../hooks/useRacePlayback';
@@ -32,17 +34,22 @@ interface RaceScreenProps {
 const PACE_KEYS: Record<string, PaceMode> = { '1': 'conserve', '2': 'standard', '3': 'push' };
 
 function announce(next: RaceState): string {
-  const player = getPlayerCar(next);
-  const lapEvents = next.events.filter((e) => e.lap === next.lap && (e.major || e.carId === player.id));
-  const head =
-    next.phase === 'finished'
-      ? 'Chequered flag.'
-      : `Lap ${next.lap} complete.${player.status === 'running' ? ` You are P${player.position}.` : ''}`;
+  const managed = getManagedCars(next);
+  const ids = new Set(managed.map((c) => c.id));
+  const lapEvents = next.events.filter((e) => e.lap === next.lap && (e.major || (e.carId !== undefined && ids.has(e.carId))));
+  const running = managed.filter((c) => c.status === 'running');
+  const where =
+    managed.length > 1
+      ? running.map((c) => `${getDriver(c.driverId).code} P${c.position}`).join(', ')
+      : running[0]
+        ? `You are P${running[0].position}.`
+        : '';
+  const head = next.phase === 'finished' ? 'Chequered flag.' : `Lap ${next.lap} complete. ${where}`;
   return [head, ...lapEvents.map((e) => e.title)].join(' ');
 }
 
 export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenProps) {
-  const { decision, decisionError, updateDecision, finishAfterRetirement } = controller;
+  const { decisions, decisionErrors, updateDecision, finishAfterRetirement } = controller;
   const engine = controller.race;
   const { settings, update } = useSettings();
   const reducedMotion = useReducedMotion();
@@ -56,11 +63,11 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
     (next: RaceState) => {
       if (next.lap === 0) return;
       setLiveMessage(announce(next));
-      const me = getPlayerCar(next).id;
+      const mine = new Set(getManagedCars(next).map((c) => c.id));
       const lapEvents = next.events.filter((e) => e.lap === next.lap);
       if (next.phase === 'finished') play('finish');
       else if (lapEvents.some((e) => e.kind === 'safety-car' || (e.kind === 'weather' && e.major))) play('alert');
-      else if (lapEvents.some((e) => e.kind === 'pit' && e.carId === me)) play('pit');
+      else if (lapEvents.some((e) => e.kind === 'pit' && e.carId !== undefined && mine.has(e.carId))) play('pit');
       else play('lap');
     },
     [play],
@@ -70,9 +77,19 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
   const race = playback.shown;
 
   const circuit = getCircuit(race.config.circuitId);
-  const player = getPlayerCar(race);
-  const enginePlayer = getPlayerCar(engine);
-  const engineer = playerEngineer(race);
+  // With both cars of a team the panels and the call follow the car in focus.
+  const managed = getManagedCars(engine);
+  const [focusId, setFocusId] = useState(managed[0].id);
+  const player = race.cars.find((c) => c.id === focusId) ?? getPlayerCar(race);
+  const enginePlayer = engine.cars.find((c) => c.id === focusId) ?? getPlayerCar(engine);
+  const decision = decisions[focusId] ?? defaultDecision(engine, focusId);
+  const decisionError = decisionErrors[focusId] ?? null;
+  const setDecision = useCallback((patch: Partial<PlayerDecision>) => updateDecision(focusId, patch), [updateDecision, focusId]);
+  const engineerFor = useCallback((carId: string | undefined) => playerEngineer(race, carId), [race]);
+  const switchCar = useCallback(() => {
+    const i = managed.findIndex((c) => c.id === focusId);
+    setFocusId(managed[(i + 1) % managed.length].id);
+  }, [managed, focusId]);
 
   // Projections plan the pending call, so they start from the engine state.
   const outlook = useMemo(() => evaluateStrategies(engine, enginePlayer.id), [engine, enginePlayer.id]);
@@ -159,13 +176,17 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
       playback.skipLap();
       return;
     }
+    if (key === 'c' && managed.length > 1) {
+      switchCar();
+      return;
+    }
     if (engine.phase !== 'running') return;
     if (PACE_KEYS[key] && !engine.safetyCar.active) {
-      updateDecision({ pace: PACE_KEYS[key] });
+      setDecision({ pace: PACE_KEYS[key] });
     } else if (key === 'b' && engine.lap + 1 < engine.totalLaps) {
-      updateDecision({ box: !decision.box });
+      setDecision({ box: !decision.box });
     } else if (key === 'e' && !engine.safetyCar.active && enginePlayer.battery >= BOOST_COST) {
-      updateDecision({ boost: !decision.boost });
+      setDecision({ boost: !decision.boost });
     }
   };
   useLayoutEffect(() => {
@@ -180,6 +201,7 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
   const controls = engine.phase === 'running' ? <CallLockNote playback={playback} nextLap={engine.lap + 1} /> : null;
 
   const finishedEntry = race.classification?.find((e) => e.carId === player.id);
+  const teamEntries = getManagedCars(race).map((c) => ({ car: c, entry: race.classification?.find((e) => e.carId === c.id) }));
 
   return (
     <div className={`race${race.safetyCar.active ? ' is-sc' : ''}`}>
@@ -201,7 +223,8 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
             {lights !== null && <StartLights lit={lights} />}
             {race.weather.rain >= 0.05 && <div className="map-frame__rain" aria-hidden="true" />}
             <p className="map-frame__caption muted">
-              Live: every car runs its own lap times. Your car: {getDriver(player.driverId).code}, ringed. Panels update as the leader crosses the line.
+              Live: every car runs its own lap times. {managed.length > 1 ? 'Your cars' : 'Your car'}:{' '}
+              {managed.map((c) => getDriver(c.driverId).code).join(' and ')}, ringed. Panels update as the leader crosses the line.
             </p>
             {race.safetyCar.active && (
               <p className="map-frame__banner" role="note">
@@ -233,12 +256,20 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
             <section className="deck deck--finished" aria-labelledby="finish-title">
               <Flag className="deck__flag" size={28} aria-hidden="true" />
               <h2 id="finish-title" className="deck__title display">
-                {finishedEntry?.status === 'finished' ? `P${finishedEntry.position}` : 'Did not finish'}
+                {teamEntries.length > 1
+                  ? teamEntries.map(({ car, entry }) => `${getDriver(car.driverId).code} ${entry?.status === 'finished' ? 'P' + entry.position : 'DNF'}`).join('  ·  ')
+                  : finishedEntry?.status === 'finished'
+                    ? `P${finishedEntry.position}`
+                    : 'Did not finish'}
               </h2>
               <p className="deck__explain">
-                {finishedEntry?.status === 'finished'
-                  ? `${getDriver(player.driverId).name} takes the chequered flag in P${finishedEntry.position} of ${race.cars.length}.`
-                  : `${getDriver(player.driverId).name} retired on lap ${player.retiredLap}.`}{' '}
+                {teamEntries
+                  .map(({ car, entry }) =>
+                    entry?.status === 'finished'
+                      ? `${getDriver(car.driverId).name} takes the chequered flag in P${entry.position} of ${race.cars.length}.`
+                      : `${getDriver(car.driverId).name} retired on lap ${car.retiredLap}.`,
+                  )
+                  .join(' ')}{' '}
                 {controller.saveStatus.kind === 'saved' && 'Result saved to your records.'}
                 {controller.saveStatus.kind === 'error' && `The result could not be saved: ${controller.saveStatus.message}`}
               </p>
@@ -259,17 +290,24 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
               <div className="deck__actions">{controls}</div>
             </section>
           ) : (
-            <DecisionPanel
-              race={engine}
-              decision={decision}
-              decisionError={decisionError}
-              outlook={outlook}
-              rejoin={rejoin}
-              showProjections={settings.showProjections}
-              onChange={updateDecision}
-              onFinishAfterRetirement={handleFinish}
-              controls={controls}
-            />
+            <>
+              {managed.length > 1 && (
+                <CarSwitcher engine={engine} cars={getManagedCars(race)} focusId={focusId} decisions={decisions} onFocus={setFocusId} />
+              )}
+              <DecisionPanel
+                key={focusId}
+                race={engine}
+                carId={focusId}
+                decision={decision}
+                decisionError={decisionError}
+                outlook={outlook}
+                rejoin={rejoin}
+                showProjections={settings.showProjections}
+                onChange={setDecision}
+                onFinishAfterRetirement={handleFinish}
+                controls={controls}
+              />
+            </>
           )}
         </div>
 
@@ -280,10 +318,10 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
         </div>
 
         <div className="race__telemetry">
-          <Telemetry race={race} collapsible />
+          <Telemetry race={race} carId={player.id} collapsible />
         </div>
         <div className="race__feed">
-          <RaceFeed events={race.events} engineer={engineer} currentLap={race.lap} collapsible />
+          <RaceFeed events={race.events} engineer={engineerFor} currentLap={race.lap} collapsible />
         </div>
       </main>
 
@@ -299,6 +337,56 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
       >
         <p>Your race is saved after every lap. You can resume it from the main menu.</p>
       </ConfirmDialog>
+    </div>
+  );
+}
+
+/** Tabs for the managed cars, with each car's position and pending call. */
+function CarSwitcher({
+  engine,
+  cars,
+  focusId,
+  decisions,
+  onFocus,
+}: {
+  engine: RaceState;
+  cars: CarState[];
+  focusId: string;
+  decisions: Record<string, PlayerDecision>;
+  onFocus: (id: string) => void;
+}) {
+  return (
+    <div className="car-switch" role="tablist" aria-label="Your cars">
+      {cars.map((car) => {
+        const d = decisions[car.id];
+        const driver = getDriver(car.driverId);
+        const active = car.id === focusId;
+        return (
+          <button
+            key={car.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={`car-switch__tab${active ? ' is-active' : ''}`}
+            onClick={() => onFocus(car.id)}
+            aria-keyshortcuts="C"
+          >
+            <span className="team-dot" style={{ background: getTeam(car.teamId).color }} aria-hidden="true" />
+            <span className="car-switch__code">{driver.code}</span>
+            <span className="car-switch__pos num">{car.status === 'running' ? `P${car.position}` : 'Out'}</span>
+            <TyreBadge compound={car.tyre.compound} size={18} />
+            <span className="car-switch__call muted">
+              {car.status !== 'running'
+                ? 'Retired'
+                : d?.box && engine.lap + 1 < engine.totalLaps
+                  ? `Box for ${COMPOUNDS[d.compound].name.toLowerCase()}s`
+                  : d
+                    ? PACE_MODES[d.pace].label
+                    : ''}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

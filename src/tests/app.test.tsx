@@ -30,8 +30,9 @@ describe('game flow', () => {
     expect(screen.getByRole('heading', { name: /Race briefing/i })).toBeInTheDocument();
     expect(screen.getByLabelText('Race seed')).toHaveValue('4242');
     expect(screen.getAllByRole('radio', { name: /Bahrain/ }).length).toBeGreaterThan(0);
-    await user.selectOptions(screen.getByLabelText('Your driver'), 'lec');
-    expect(screen.getByText(/Race engineer: Bryan Bozzi/)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Your team'), 'ferrari');
+    expect(screen.getByText(/race engineer: Bryan Bozzi/)).toBeInTheDocument();
+    expect(screen.getByText(/race engineer: Carlo Santi/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Start race' }));
     expect(screen.getByRole('heading', { name: /Lap 1 call/i })).toBeInTheDocument();
     expect(screen.getByText('Bahrain Grand Prix')).toBeInTheDocument();
@@ -50,7 +51,7 @@ describe('game flow', () => {
     await user.click(screen.getByRole('radio', { name: 'Box at the end of lap 2' }));
     await user.click(screen.getByRole('radio', { name: /^Hard tyre/ }));
     await user.click(screen.getByRole('button', { name: 'Next lap' }));
-    expect(screen.getAllByText(/Box, box: Medium to Hard/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Box, box NOR: Medium to Hard/).length).toBeGreaterThan(0);
 
     // The full Grand Prix distance (56 laps at Sepang), one line crossing at a time.
     for (let lap = 3; lap <= 60; lap++) {

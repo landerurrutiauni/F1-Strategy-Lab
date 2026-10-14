@@ -3,7 +3,8 @@ import { classify } from '../game/classification';
 import { BOOST_COST, COMPOUND_RULE_PENALTY, PIT_STATIONARY_MEAN, SC_PIT_FACTOR } from '../game/constants';
 import { getCircuit } from '../game/data/circuits';
 import { DRIVERS } from '../game/data/teams';
-import { RaceEngineError, advanceLap, createRace, defaultDecision, getPlayerCar, validateConfig, validateDecision } from '../game/engine';
+import { RaceEngineError, advanceLap, createRace, defaultDecision, getManagedCars, getPlayerCar, validateConfig, validateDecision } from '../game/engine';
+import { rateStrategy } from '../game/rating';
 import type { RaceState } from '../game/types';
 import { baseConfig, runLaps, scriptedOneStop } from './helpers';
 
@@ -254,5 +255,45 @@ describe('classification', () => {
     const race = runLaps(createRace(baseConfig({ laps: 10 })), 10);
     const entry = race.classification!.find((e) => e.carId === getPlayerCar(race).id)!;
     if (entry.status === 'finished') expect(entry.penaltyTime).toBe(COMPOUND_RULE_PENALTY);
+  });
+});
+
+describe('managing both cars of a team', () => {
+  const teamConfig = () => baseConfig({ playerDriverId: 'nor', managedDriverIds: ['nor', 'pia'], startCompounds: { nor: 'medium', pia: 'hard' } });
+
+  it('gives each car its own call, start tyre, decision log and rating', () => {
+    let race = createRace(teamConfig());
+    const [nor, pia] = getManagedCars(race);
+    expect([nor.driverId, pia.driverId]).toEqual(['nor', 'pia']);
+    expect(nor.isPlayer && pia.isPlayer).toBe(true);
+    expect(pia.tyre.compound).toBe('hard');
+    expect(Object.keys(race.preRacePlans ?? {})).toEqual(expect.arrayContaining([nor.id, pia.id]));
+
+    race = advanceLap(race, {
+      [nor.id]: { pace: 'push', box: false, compound: 'medium', boost: false },
+      [pia.id]: { pace: 'conserve', box: true, compound: 'soft', boost: false },
+    });
+    const after = getManagedCars(race);
+    expect(after[0].pace).toBe('push');
+    expect(after[1].pitStops).toHaveLength(1);
+    expect(after[1].tyre.compound).toBe('soft');
+    expect(race.decisionLog.map((d) => d.carId)).toEqual([nor.id, pia.id]);
+    expect(race.events.some((e) => e.title === 'Box, box PIA: Hard to Soft')).toBe(true);
+
+    race = runLaps(race, 14);
+    expect(race.phase).toBe('finished');
+    expect(rateStrategy(race, pia.id).score).toBeGreaterThanOrEqual(0);
+    expect(rateStrategy(race, nor.id).keyDecisions).toBeDefined();
+  });
+
+  it('rejects a managed list without the lead driver', () => {
+    expect(validateConfig(baseConfig({ managedDriverIds: ['pia'] }))).not.toEqual([]);
+    expect(validateConfig(teamConfig())).toEqual([]);
+  });
+
+  it('keeps a single decision working for the lead car', () => {
+    const race = advanceLap(createRace(teamConfig()), { pace: 'conserve', box: false, compound: 'medium', boost: false });
+    expect(getPlayerCar(race).pace).toBe('conserve');
+    expect(getManagedCars(race)[1].pace).toBe('standard');
   });
 });

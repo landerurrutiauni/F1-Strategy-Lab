@@ -30,7 +30,8 @@ const ICONS: Record<RaceEventKind, typeof Info> = {
 
 interface RaceFeedProps {
   events: RaceEvent[];
-  engineer: string;
+  /** The race engineer speaking on the radio, or a lookup by the event's car. */
+  engineer: string | ((carId: string | undefined) => string);
   currentLap: number;
   collapsible?: boolean;
   limit?: number;
@@ -56,7 +57,7 @@ export const RaceFeed = memo(function RaceFeed({ events, engineer, currentLap, c
                   <div className="feed__radio">
                     <p className="feed__radio-head">
                       <Radio size={13} aria-hidden="true" />
-                      {engineer}, team radio
+                      {typeof engineer === 'function' ? engineer(event.carId) : engineer}, team radio
                     </p>
                     <p>“{event.radio}”</p>
                   </div>

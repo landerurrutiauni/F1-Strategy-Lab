@@ -28,16 +28,16 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
   await page.goto('./?seed=2468');
   await expect(page.getByRole('heading', { level: 1, name: /F1 Strategy Lab/i })).toBeVisible();
 
-  // Briefing: circuit, driver, distance, weather, tyre and the Safety Car drill.
+  // Briefing: circuit, team (both cars), distance, weather, tyres and the Safety Car drill.
   await page.getByRole('button', { name: 'New race' }).click();
   await expect(page.getByRole('heading', { name: 'Race briefing' })).toBeVisible();
   await page.locator('label.circuit-card', { hasText: 'Monza' }).click();
   await expect(page.getByRole('heading', { name: 'Italian Grand Prix' })).toBeVisible();
-  await page.getByLabel('Your driver').selectOption('ver');
-  await expect(page.getByText(/Race engineer: Gianpiero Lambiase/)).toBeVisible();
+  await page.getByLabel('Your team').selectOption('redbull');
+  await expect(page.getByText(/race engineer: Gianpiero Lambiase/)).toBeVisible();
   await expect(page.getByText('53 laps, 307.0 km')).toBeVisible();
   await page.locator('label.segmented__option', { hasText: 'Variable' }).click();
-  await page.locator('label.compound', { hasText: 'Soft' }).click();
+  await page.locator('label.compound', { hasText: 'Soft' }).first().click();
   await page.getByText('Seed and event drills').click();
   await page.getByLabel('Event drill').selectOption('safety-car-early');
   await page.getByRole('button', { name: 'Start race' }).click();
@@ -61,9 +61,11 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
   await page.locator('label.compound', { hasText: 'Hard' }).click();
   await advance(page);
   await expect(page.locator('.tyres__compound')).toContainText('Hard');
-  await expect(page.locator('.feed__title', { hasText: 'Box, box: Soft to Hard' })).toBeVisible();
+  await expect(page.locator('.feed__title', { hasText: 'Box, box VER: Soft to Hard' })).toBeVisible();
 
-  // Run to the flag.
+  // The second car has its own call: switch to it with the keyboard.
+  await page.keyboard.press('c');
+  await expect(page.getByRole('tab', { name: /HAD/ })).toHaveAttribute('aria-selected', 'true');
   // Run to the flag over Monza's full 53 laps, a line crossing at a time.
   await runToFlag(page);
   await expect(page.getByText(/Result saved to your records/)).toBeVisible();

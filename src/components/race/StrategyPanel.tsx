@@ -15,13 +15,14 @@ interface StrategyPanelProps {
 export function StrategyPanel({ race, car, outlook, showProjections }: StrategyPanelProps) {
   // Compare green-flag laps only: Safety Car laps slow everyone and were not in the plan.
   let vsPlan: number | null = null;
-  if (race.lap > 0 && car.status === 'running' && race.preRacePlanElapsed.length > 0) {
+  const plan = race.preRacePlans?.[car.id] ?? (car.driverId === race.config.playerDriverId ? race.preRacePlanElapsed : []);
+  if (race.lap > 0 && car.status === 'running' && plan.length > 0) {
     const firstLap = car.laps[0];
     const startElapsed = firstLap ? firstLap.elapsed - firstLap.lapTime : 0;
     vsPlan = 0;
     for (const lap of car.laps) {
-      const planEnd = race.preRacePlanElapsed[lap.lap];
-      const planStart = lap.lap === 1 ? startElapsed : race.preRacePlanElapsed[lap.lap - 1];
+      const planEnd = plan[lap.lap];
+      const planStart = lap.lap === 1 ? startElapsed : plan[lap.lap - 1];
       if (lap.safetyCar || typeof planEnd !== 'number' || typeof planStart !== 'number') continue;
       vsPlan += lap.lapTime - (planEnd - planStart);
     }

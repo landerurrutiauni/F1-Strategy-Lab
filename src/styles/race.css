@@ -867,3 +867,54 @@
   background: #ff2d2d;
   box-shadow: 0 0 12px rgb(255 45 45 / 0.75);
 }
+
+/* ---------- Two-car switcher ---------- */
+.car-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+
+.car-switch__tab {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--carbon-600);
+  border-radius: var(--radius);
+  background: var(--carbon-850);
+  color: var(--paper);
+  text-align: left;
+  transition: border-color var(--dur-fast), background-color var(--dur-fast);
+}
+
+.car-switch__tab:hover {
+  border-color: var(--graphite-dim);
+}
+
+.car-switch__tab.is-active {
+  border-color: var(--lime);
+  background: var(--carbon-800);
+  box-shadow: inset 0 -2px 0 var(--lime);
+}
+
+.car-switch__code {
+  font-family: var(--font-display);
+  font-stretch: 75%;
+  font-weight: 750;
+  font-size: var(--text-md);
+}
+
+.car-switch__pos {
+  font-weight: 650;
+}
+
+.car-switch__call {
+  margin-left: auto;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

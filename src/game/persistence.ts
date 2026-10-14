@@ -51,6 +51,8 @@ export interface RaceRecord {
   ratingScore: number;
   ratingGrade: string;
   bestLap: number | null;
+  /** The team-mate's result when both cars were managed. */
+  teammate?: { driverName: string; position: number; finished: boolean };
 }
 
 interface RecordsFile {
@@ -185,7 +187,15 @@ export function buildRaceRecord(state: RaceState, now: Date = new Date()): RaceR
     ratingScore: rating.score,
     ratingGrade: rating.grade,
     bestLap: player.bestLapTime,
+    ...teammateOf(state, player.id),
   };
+}
+
+function teammateOf(state: RaceState, leadId: string): Pick<RaceRecord, 'teammate'> {
+  const mate = state.cars.find((c) => c.isPlayer && c.id !== leadId);
+  const entry = mate && state.classification?.find((e) => e.carId === mate.id);
+  if (!mate || !entry) return {};
+  return { teammate: { driverName: getDriver(mate.driverId).name, position: entry.position, finished: entry.status === 'finished' } };
 }
 
 export interface CareerStats {
@@ -222,10 +232,13 @@ export function computeStats(races: RaceRecord[]): CareerStats {
 
 /* ---------- Race in progress ---------- */
 
-interface ActiveRaceFile {
+export interface ActiveRaceFile {
   version: 1;
   state: RaceState;
+  /** Pending call for the lead car (kept for older saves). */
   decision: PlayerDecision;
+  /** Pending calls for every managed car, keyed by car id. */
+  decisions?: Record<string, PlayerDecision>;
 }
 
 function isPlausibleRaceState(value: unknown): value is RaceState {
@@ -248,14 +261,20 @@ function isPlausibleRaceState(value: unknown): value is RaceState {
   );
 }
 
-export function saveActiveRace(state: RaceState, decision: PlayerDecision, storage: StorageLike | null = getBrowserStorage()): boolean {
+export function saveActiveRace(
+  state: RaceState,
+  decisions: PlayerDecision | Record<string, PlayerDecision>,
+  storage: StorageLike | null = getBrowserStorage(),
+): boolean {
   if (!storage) return false;
   try {
     if (state.phase !== 'running') {
       storage.removeItem(ACTIVE_RACE_KEY);
       return true;
     }
-    const file: ActiveRaceFile = { version: 1, state, decision };
+    const lead = getPlayerCar(state).id;
+    const map = typeof (decisions as PlayerDecision).pace === 'string' ? { [lead]: decisions as PlayerDecision } : (decisions as Record<string, PlayerDecision>);
+    const file: ActiveRaceFile = { version: 1, state, decision: map[lead] ?? Object.values(map)[0], decisions: map };
     storage.setItem(ACTIVE_RACE_KEY, JSON.stringify(file));
     return true;
   } catch {

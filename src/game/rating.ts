@@ -60,9 +60,11 @@ export function gradeFor(score: number): StrategyRating['grade'] {
   return 'D';
 }
 
-export function rateStrategy(state: RaceState): StrategyRating {
-  const player = getPlayerCar(state);
-  const log = state.decisionLog;
+/** Rates the calls made for one managed car (the lead car by default). */
+export function rateStrategy(state: RaceState, carId?: string): StrategyRating {
+  const lead = getPlayerCar(state);
+  const player = (carId && state.cars.find((c) => c.id === carId)) || lead;
+  const log = state.decisionLog.filter((d) => (d.carId ?? lead.id) === player.id);
 
   // Pit calls.
   const pitRegret = log.reduce((sum, d) => sum + d.regret, 0);

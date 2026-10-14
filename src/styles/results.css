@@ -287,3 +287,7 @@
     flex: 1 1 100%;
   }
 }
+
+.results__car {
+  max-width: 560px;
+}

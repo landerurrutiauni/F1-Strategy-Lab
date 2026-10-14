@@ -54,6 +54,8 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
   }, []);
   const driver = getDriver(config.playerDriverId);
   const team = getTeam(driver.teamId);
+  const teamDrivers = DRIVERS.filter((d) => d.teamId === team.id);
+  const startOf = (driverId: string): CompoundId => config.startCompounds?.[driverId] ?? config.startCompound;
   const errors = validateConfig(config);
   const set = <K extends keyof RaceConfig>(key: K, value: RaceConfig[K]) => onChange({ ...config, [key]: value });
 
@@ -65,7 +67,10 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
       const player = getPlayerCar(preview);
       const outlook = evaluateStrategies(preview, player.id);
       const startOptions = COMPOUND_ORDER.map((compound) => {
-        const race = compound === config.startCompound ? preview : createRace({ ...config, startCompound: compound });
+        const race =
+          compound === (config.startCompounds?.[config.playerDriverId] ?? config.startCompound)
+            ? preview
+            : createRace({ ...config, startCompound: compound, startCompounds: { ...config.startCompounds, [config.playerDriverId]: compound } });
         const o = evaluateStrategies(race, getPlayerCar(race).id);
         return { compound, total: o?.best.totalTime ?? Infinity, plan: o ? planLabel(o.best.stops) : '' };
       }).sort((a, b) => a.total - b.total);
@@ -76,7 +81,7 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
   }, [config]);
 
   const bestStart = analysis?.startOptions[0];
-  const chosenStart = analysis?.startOptions.find((s) => s.compound === config.startCompound);
+  const chosenStart = analysis?.startOptions.find((s) => s.compound === startOf(config.playerDriverId));
   const wetStart = (analysis?.preview.weather.wetness ?? 0) >= 0.08;
 
   return (
@@ -119,22 +124,37 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
           </fieldset>
 
           <div className="field">
-            <label className="field__label" htmlFor="driver">
-              Your driver
+            <label className="field__label" htmlFor="team">
+              Your team
             </label>
-            <select id="driver" className="select" value={config.playerDriverId} onChange={(e) => set('playerDriverId', e.target.value)}>
+            <select
+              id="team"
+              className="select"
+              value={team.id}
+              onChange={(e) => {
+                const pair = DRIVERS.filter((d) => d.teamId === e.target.value);
+                onChange({
+                  ...config,
+                  playerDriverId: pair[0].id,
+                  managedDriverIds: pair.map((d) => d.id),
+                  startCompounds: Object.fromEntries(pair.map((d) => [d.id, config.startCompound])),
+                });
+              }}
+            >
               {TEAMS.map((t) => (
-                <optgroup key={t.id} label={t.name}>
-                  {DRIVERS.filter((d) => d.teamId === t.id).map((d) => (
-                    <option key={d.id} value={d.id}>
-                      #{d.number} {d.name}
-                    </option>
-                  ))}
-                </optgroup>
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
               ))}
             </select>
             <p className="field__help">
-              <span className="team-dot" style={{ background: team.color }} aria-hidden="true" /> {team.name}, car rated {teamRank(team.id)} of {TEAMS.length}. Race engineer: {driver.engineer}.
+              <span className="team-dot" style={{ background: team.color }} aria-hidden="true" /> Car rated {teamRank(team.id)} of {TEAMS.length}. You run the strategy for both cars:{' '}
+              {teamDrivers.map((d, i) => (
+                <span key={d.id}>
+                  {i > 0 && ' and '}#{d.number} {d.name} (race engineer: {d.engineer})
+                </span>
+              ))}
+              .
             </p>
           </div>
 
@@ -149,25 +169,40 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
             ]}
           />
 
-          <fieldset className="field">
-            <legend className="field__label">Starting tyre</legend>
-            <div className="compounds__grid compounds__grid--start">
-              {COMPOUND_ORDER.map((id) => {
-                const option = analysis?.startOptions.find((s) => s.compound === id);
-                const delta = option && bestStart ? option.total - bestStart.total : null;
-                return (
-                  <label key={id} className={`compound${config.startCompound === id ? ' is-checked' : ''}`}>
-                    <input type="radio" name="start-compound" value={id} checked={config.startCompound === id} onChange={() => set('startCompound', id as CompoundId)} />
-                    <TyreBadge compound={id} size={26} />
-                    <span className="compound__name">{COMPOUNDS[id].name}</span>
-                    {delta !== null && Number.isFinite(delta) && (
-                      <span className={`compound__delta${delta < 0.05 ? ' is-best' : ''}`}>{delta < 0.05 ? 'Best est.' : formatDelta(delta)}</span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
+          {teamDrivers.map((d) => (
+            <fieldset className="field" key={d.id}>
+              <legend className="field__label">Starting tyre: {d.name}</legend>
+              <div className="compounds__grid compounds__grid--start">
+                {COMPOUND_ORDER.map((id) => {
+                  const option = analysis?.startOptions.find((s) => s.compound === id);
+                  const delta = option && bestStart ? option.total - bestStart.total : null;
+                  const checked = startOf(d.id) === id;
+                  return (
+                    <label key={id} className={`compound${checked ? ' is-checked' : ''}`}>
+                      <input
+                        type="radio"
+                        name={`start-compound-${d.id}`}
+                        value={id}
+                        checked={checked}
+                        onChange={() =>
+                          onChange({
+                            ...config,
+                            startCompound: d.id === config.playerDriverId ? id : config.startCompound,
+                            startCompounds: { ...Object.fromEntries(teamDrivers.map((x) => [x.id, startOf(x.id)])), [d.id]: id },
+                          })
+                        }
+                      />
+                      <TyreBadge compound={id} size={26} />
+                      <span className="compound__name">{COMPOUNDS[id].name}</span>
+                      {delta !== null && Number.isFinite(delta) && (
+                        <span className={`compound__delta${delta < 0.05 ? ' is-best' : ''}`}>{delta < 0.05 ? 'Best est.' : formatDelta(delta)}</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ))}
 
           <Segmented<Difficulty>
             legend="Difficulty"

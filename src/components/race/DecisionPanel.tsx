@@ -12,6 +12,8 @@ import { TyreBadge } from '../TyreBadge';
 
 interface DecisionPanelProps {
   race: RaceState;
+  /** The managed car this call is for (the lead car when omitted). */
+  carId?: string;
   decision: PlayerDecision;
   decisionError: string | null;
   outlook: StrategyOutlook | null;
@@ -27,6 +29,7 @@ const PACE_ORDER: PaceMode[] = ['conserve', 'standard', 'push'];
 
 export function DecisionPanel({
   race,
+  carId,
   decision,
   decisionError,
   outlook,
@@ -36,7 +39,7 @@ export function DecisionPanel({
   onFinishAfterRetirement,
   controls,
 }: DecisionPanelProps) {
-  const player = getPlayerCar(race);
+  const player = (carId && race.cars.find((c) => c.id === carId)) || getPlayerCar(race);
   const upcoming = race.lap + 1;
   const finalLap = upcoming >= race.totalLaps;
   const sc = race.safetyCar.active;

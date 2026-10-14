@@ -10,10 +10,12 @@ interface TelemetryProps {
   collapsible?: boolean;
   /** Compare against this car (defaults to the current leader / winner). */
   compareId?: string;
+  /** The managed car to chart (the lead car by default). */
+  carId?: string;
 }
 
-export function Telemetry({ race, collapsible, compareId }: TelemetryProps) {
-  const player = race.cars.find((c) => c.isPlayer)!;
+export function Telemetry({ race, collapsible, compareId, carId }: TelemetryProps) {
+  const player = (carId && race.cars.find((c) => c.id === carId)) || race.cars.find((c) => c.driverId === race.config.playerDriverId) || race.cars.find((c) => c.isPlayer)!;
   const leader = race.cars.find((c) => c.id === compareId) ?? [...race.cars].sort((a, b) => a.position - b.position)[0];
   const scLaps = useMemo(() => race.lapStatus.map((s, i) => (s === 'sc' ? i : -1)).filter((i) => i > 0), [race.lapStatus]);
   const pitMarkers = player.pitStops.map((p) => ({ lap: p.lap, label: 'Pit' }));
