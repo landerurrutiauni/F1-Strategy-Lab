@@ -75,9 +75,14 @@ export function safetyCarLapTime(circuit: CircuitSpec, wetness: number): number 
 }
 
 /** Car + driver pace offset, including the difficulty adjustment that applies to rivals only. */
-export function carPaceOffset(car: Pick<CarState, 'teamId' | 'driverId' | 'isPlayer'>, difficulty: Difficulty): number {
+export function carPaceOffset(car: Pick<CarState, 'teamId' | 'driverId' | 'isPlayer' | 'paceBonus'>, difficulty: Difficulty): number {
   const team = getTeam(car.teamId);
   const driver = getDriver(car.driverId);
   const rivalAdjust = car.isPlayer ? 0 : DIFFICULTIES[difficulty].rivalPace;
-  return team.carPace + driver.skill + rivalAdjust;
+  return team.carPace + driver.skill + rivalAdjust + (car.paceBonus ?? 0);
+}
+
+/** Tyre-wear multiplier for a car: the driver's smoothness times any season effect. */
+export function wearSmoothness(car: Pick<CarState, 'driverId' | 'wearFactor'>): number {
+  return getDriver(car.driverId).tyreSmoothness * (car.wearFactor ?? 1);
 }

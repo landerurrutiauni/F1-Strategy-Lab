@@ -7,6 +7,13 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  -webkit-tap-highlight-color: rgb(200 240 60 / 0.12);
+}
+
+@media (pointer: fine) {
+  html {
+    overscroll-behavior: none;
+  }
 }
 
 body {
@@ -28,6 +35,16 @@ h3,
 h4,
 p {
   margin: 0;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 button,

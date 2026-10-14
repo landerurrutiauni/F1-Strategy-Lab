@@ -107,6 +107,34 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
           </ul>
         </section>
         <section>
+          <h2>The 2026 season</h2>
+          <p>
+            Season mode runs the whole championship. It starts with two three-day tests at Sakhir in February: each day you pick a programme (aero mapping, race
+            simulations, pit-stop practice or reliability mileage) that improves your car for the whole year. Then come all 23 rounds of the calendar.
+          </p>
+          <ul>
+            <li>
+              <strong>Standard weekends:</strong> Practice 1, 2 and 3, Qualifying and the Grand Prix.
+            </li>
+            <li>
+              <strong>Sprint weekends</strong> (China, Miami, Canada, Great Britain, the Netherlands and Singapore): Practice 1, Sprint Qualifying, the Sprint, Qualifying and the Grand Prix.
+            </li>
+            <li>
+              <strong>Practice:</strong> setup work, long runs or qualifying simulations build up your weekend preparation. A wet session teaches less.
+            </li>
+            <li>
+              <strong>Qualifying:</strong> three knock-out segments. The slowest six drop out in Q1 and Q2; the top ten fight for pole in Q3. You pick the tyre and the run plan for each
+              segment. In Sprint Qualifying mediums are compulsory in SQ1 and SQ2 and softs in SQ3 when it is dry. Getting through Q1 or Q2 on mediums saves a set of softs for Sunday.
+            </li>
+            <li>
+              <strong>Races:</strong> run them yourself on the pit wall, or let the team strategist simulate them. Sprints have no compulsory pit stop.
+            </li>
+            <li>
+              <strong>Points:</strong> 25-18-15-12-10-8-6-4-2-1 in the Grand Prix and 8-7-6-5-4-3-2-1 in the Sprint, with no point for the fastest lap. Teams also bring upgrades during the year, so the order shifts.
+            </li>
+          </ul>
+        </section>
+        <section>
           <h2>Strategy outlook and rating</h2>
           <p>
             The outlook projects every zero-, one- and two-stop plan with the same formulas the race uses and shows the quickest ones. These are estimates: they ignore traffic and future Safety Cars, and the weather may not follow the radar.

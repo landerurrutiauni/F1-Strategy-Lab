@@ -27,7 +27,10 @@ export function RaceHeader({ race, onLeave }: RaceHeaderProps) {
       <div className="race-header__brand">
         <span className="brand-mark" aria-hidden="true" />
         <div>
-          <p className="race-header__event">{circuit.grandPrix}</p>
+          <h1 className="race-header__event">
+            {circuit.grandPrix}
+            {race.config.session === 'sprint' ? ' Sprint' : ''}
+          </h1>
           <p className="race-header__venue muted">
             Round {circuit.round}, {circuit.fullName}
           </p>

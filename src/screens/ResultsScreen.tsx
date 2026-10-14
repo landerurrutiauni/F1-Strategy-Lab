@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, CircleCheck, CircleX, Flag, House, ListChecks, RotateCcw, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { ArrowLeft, CircleCheck, CircleX, Flag, House, ListChecks, RotateCcw, ThumbsDown, ThumbsUp, Trophy } from 'lucide-react';
 import { StintChart } from '../components/StintChart';
 import { Telemetry } from '../components/race/Telemetry';
 import { RaceFeed } from '../components/race/RaceFeed';
@@ -18,9 +18,11 @@ interface ResultsScreenProps {
   saveStatus: SaveStatus;
   onRaceAgain: () => void;
   onMenu: () => void;
+  /** Season races go back to the season instead of offering a rematch. */
+  onContinueSeason?: () => void;
 }
 
-export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu }: ResultsScreenProps) {
+export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu, onContinueSeason }: ResultsScreenProps) {
   const [showSummary, setShowSummary] = useState(false);
   const rating = useMemo(() => rateStrategy(race), [race]);
   const circuit = getCircuit(race.config.circuitId);
@@ -33,6 +35,7 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu }: Results
   const pitLoss = player.pitStops.reduce((s, p) => s + p.totalLoss, 0);
   const majorEvents = race.events.filter((e) => e.major && e.kind !== 'start');
   const finished = entry?.status === 'finished';
+  const eventName = `${circuit.grandPrix}${race.config.session === 'sprint' ? ' Sprint' : ''}`;
 
   return (
     <div className="page results">
@@ -40,7 +43,7 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu }: Results
         <button type="button" className="btn btn--ghost btn--small" onClick={onMenu}>
           <ArrowLeft size={16} aria-hidden="true" /> Menu
         </button>
-        <h1 className="page__title display">{circuit.grandPrix} result</h1>
+        <h1 className="page__title display">{eventName} result</h1>
       </header>
 
       <main id="main" tabIndex={-1} className="results__layout">
@@ -56,7 +59,7 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu }: Results
             <p className="results__headline">
               {finished
                 ? entry?.position === 1
-                  ? `${driver.name} wins the ${circuit.grandPrix}.`
+                  ? `${driver.name} wins the ${eventName}.`
                   : `${driver.name} finishes P${entry?.position}. ${winnerCar ? getDriver(winnerCar.driverId).name : ''} wins.`
                 : `${driver.name} retired on lap ${player.retiredLap}: ${player.retiredReason?.toLowerCase()}.`}
             </p>
@@ -106,10 +109,17 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu }: Results
         </section>
 
         <div className="results__actions">
-          <button type="button" className="btn btn--primary" onClick={onRaceAgain}>
-            <RotateCcw size={16} aria-hidden="true" />
-            <span className="btn__label">Race again</span>
-          </button>
+          {onContinueSeason ? (
+            <button type="button" className="btn btn--primary" onClick={onContinueSeason}>
+              <Trophy size={16} aria-hidden="true" />
+              <span className="btn__label">Continue season</span>
+            </button>
+          ) : (
+            <button type="button" className="btn btn--primary" onClick={onRaceAgain}>
+              <RotateCcw size={16} aria-hidden="true" />
+              <span className="btn__label">Race again</span>
+            </button>
+          )}
           <button type="button" className="btn btn--secondary" aria-expanded={showSummary} aria-controls="race-summary" onClick={() => setShowSummary((v) => !v)}>
             <ListChecks size={16} aria-hidden="true" /> {showSummary ? 'Hide race summary' : 'Inspect race summary'}
           </button>
@@ -210,7 +220,7 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu }: Results
                   const tm = getTeam(car.teamId);
                   return (
                     <tr key={e.carId} className={car.isPlayer ? 'is-player' : undefined}>
-                      <td className="num">{e.status === 'finished' ? e.position : 'DNF'}</td>
+                      <td>{e.status === 'finished' ? e.position : 'DNF'}</td>
                       <td>
                         <span className="team-dot" style={{ background: tm.color }} aria-hidden="true" /> {dr.name}
                         {car.isPlayer && <span className="visually-hidden"> (your car)</span>}
@@ -282,8 +292,8 @@ export function ResultsScreen({ race, saveStatus, onRaceAgain, onMenu }: Results
                       const d = race.decisionLog.find((x) => x.lap === l.lap);
                       return (
                         <tr key={l.lap}>
-                          <td className="num">{l.lap}</td>
-                          <td className="num">P{l.position}</td>
+                          <td>{l.lap}</td>
+                          <td>P{l.position}</td>
                           <td className="num">{formatLapTime(l.lapTime)}</td>
                           <td>
                             <TyreBadge compound={l.compound} size={16} />

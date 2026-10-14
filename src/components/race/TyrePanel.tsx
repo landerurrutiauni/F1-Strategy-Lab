@@ -57,57 +57,58 @@ export function TyrePanel({ race, car, pace, outlook }: TyrePanelProps) {
             worn
           </text>
         </svg>
-        <div className="tyres__facts">
+        <div className="tyres__head">
           <p className="tyres__compound">
             <TyreBadge compound={car.tyre.compound} size={22} /> {spec.name}
             <span className={`tag tag--${state.tone}`}>{state.label}</span>
           </p>
-          <dl className="facts">
-            <div>
-              <dt>Pace loss from wear</dt>
-              <dd>{info.paceLoss < 0.005 ? 'None yet' : `${formatDelta(info.paceLoss, 2)}/lap`}</dd>
-            </div>
-            <div>
-              <dt>Useful life left</dt>
-              <dd>{lifeText}</dd>
-            </div>
-            <div>
-              <dt>Stint so far</dt>
-              <dd>
-                {info.stintLaps} lap{info.stintLaps === 1 ? '' : 's'}
-              </dd>
-            </div>
-            <div>
-              <dt>Wear rate at this pace</dt>
-              <dd>{info.wearPerLap.toFixed(1)}% per lap</dd>
-            </div>
-            <div>
-              <dt>Next pit window</dt>
-              <dd>
-                {outlook?.pitWindow
-                  ? outlook.pitWindow.start === outlook.pitWindow.end
-                    ? `Lap ${outlook.pitWindow.start}`
-                    : `Laps ${outlook.pitWindow.start}–${outlook.pitWindow.end}`
-                  : 'No stop needed (estimate)'}
-              </dd>
-            </div>
-            {mismatch > 0.5 && (
-              <div className="facts__warn">
-                <dt>Wrong tyre for the track</dt>
-                <dd>{formatDelta(mismatch, 1)}/lap vs best tyre</dd>
-              </div>
-            )}
-          </dl>
+          <p className="tyres__sets-label">New sets left</p>
+          <div className="sets" aria-label="New sets remaining">
+            {COMPOUND_ORDER.map((id) => (
+              <span key={id} className={`sets__item${car.allocation[id] === 0 ? ' is-empty' : ''}`} title={`${COMPOUNDS[id].name}: ${car.allocation[id]} new set${car.allocation[id] === 1 ? '' : 's'}`}>
+                <TyreBadge compound={id} size={18} />
+                <span className="sets__count">×{car.allocation[id]}</span>
+              </span>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="sets" aria-label="Fresh sets remaining">
-        {COMPOUND_ORDER.map((id) => (
-          <span key={id} className={`sets__item${car.allocation[id] === 0 ? ' is-empty' : ''}`} title={`${COMPOUNDS[id].name}: ${car.allocation[id]} new set${car.allocation[id] === 1 ? '' : 's'}`}>
-            <TyreBadge compound={id} size={18} />
-            <span className="sets__count">×{car.allocation[id]}</span>
-          </span>
-        ))}
-      </div>
+      <dl className="facts tyres__facts">
+        <div>
+          <dt>Pace loss from wear</dt>
+          <dd>{info.paceLoss < 0.005 ? 'None yet' : `${formatDelta(info.paceLoss, 2)}/lap`}</dd>
+        </div>
+        <div>
+          <dt>Useful life left</dt>
+          <dd>{lifeText}</dd>
+        </div>
+        <div>
+          <dt>Stint so far</dt>
+          <dd>
+            {info.stintLaps} lap{info.stintLaps === 1 ? '' : 's'}
+          </dd>
+        </div>
+        <div>
+          <dt>Wear rate at this pace</dt>
+          <dd>{info.wearPerLap.toFixed(1)}% per lap</dd>
+        </div>
+        <div>
+          <dt>Next pit window</dt>
+          <dd>
+            {outlook?.pitWindow
+              ? outlook.pitWindow.start === outlook.pitWindow.end
+                ? `Lap ${outlook.pitWindow.start}`
+                : `Laps ${outlook.pitWindow.start}–${outlook.pitWindow.end}`
+              : 'No stop needed (estimate)'}
+          </dd>
+        </div>
+        {mismatch > 0.5 && (
+          <div className="facts__warn">
+            <dt>Wrong tyre for the track</dt>
+            <dd>{formatDelta(mismatch, 1)}/lap vs best tyre</dd>
+          </div>
+        )}
+      </dl>
     </Panel>
   );
 }

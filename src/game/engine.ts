@@ -35,11 +35,13 @@ import {
   SLOW_STOP_CHANCE,
   SLOW_STOP_MAX,
   SLOW_STOP_MIN,
+  VALID_RACE_LAPS,
+  VALID_SPRINT_LAPS,
 } from './constants';
 import { CIRCUITS, getCircuit } from './data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER, isCompoundId } from './data/tyres';
 import { DRIVERS, getDriver, getTeam, isDriverId } from './data/teams';
-import { carPaceOffset, computeLapTime, safetyCarLapTime } from './lapTime';
+import { carPaceOffset, computeLapTime, safetyCarLapTime, wearSmoothness } from './lapTime';
 import { evaluateStrategies, planLabel, tracePlan } from './projection';
 import { createRng, normalizeSeed } from './rng';
 import { expectedWear, failureChance, fastestCompoundFor, suitabilityGap } from './tyreModel';
@@ -64,7 +66,6 @@ export class RaceEngineError extends Error {
   }
 }
 
-const VALID_LAPS = [10, 15, 20];
 const VALID_WEATHER = ['dry', 'variable', 'rainy'];
 const VALID_DIFFICULTY = ['easy', 'normal', 'hard'];
 const VALID_PACE: PaceMode[] = ['conserve', 'standard', 'push'];
@@ -76,7 +77,15 @@ export function validateConfig(config: Partial<RaceConfig> | null | undefined): 
   if (!config || typeof config !== 'object') return ['Race configuration is missing.'];
   if (!CIRCUITS.some((c) => c.id === config.circuitId)) errors.push('Choose a circuit.');
   if (!isDriverId(config.playerDriverId)) errors.push('Choose the driver you will run strategy for.');
-  if (!VALID_LAPS.includes(config.laps as number)) errors.push('Race distance must be 10, 15 or 20 laps.');
+  if (config.session !== undefined && config.session !== 'race' && config.session !== 'sprint') errors.push('Unknown session.');
+  if (config.session === 'sprint') {
+    if (!VALID_SPRINT_LAPS.includes(config.laps as number)) errors.push('Sprint distance must be 5, 8 or 10 laps.');
+  } else if (!VALID_RACE_LAPS.includes(config.laps as number)) errors.push('Race distance must be 10, 15 or 20 laps.');
+  if (config.grid !== undefined) {
+    const ids = new Set(config.grid);
+    if (!Array.isArray(config.grid) || config.grid.length !== DRIVERS.length || ids.size !== DRIVERS.length || DRIVERS.some((d) => !ids.has(d.id)))
+      errors.push('The starting grid must list every driver once.');
+  }
   if (!isCompoundId(config.startCompound)) errors.push('Choose a starting tyre.');
   if (!VALID_WEATHER.includes(config.weather as string)) errors.push('Choose a weather scenario.');
   if (!VALID_DIFFICULTY.includes(config.difficulty as string)) errors.push('Choose a difficulty.');
@@ -159,12 +168,16 @@ export function createRace(config: RaceConfig): RaceState {
 
   const wetness = initialWetness(weatherTimeline);
 
-  // Qualifying: car + driver pace plus a little variation decides the grid.
-  const quali = DRIVERS.map((driver) => {
-    const isPlayer = driver.id === config.playerDriverId;
-    const offset = carPaceOffset({ teamId: driver.teamId, driverId: driver.id, isPlayer }, config.difficulty);
-    return { driver, isPlayer, time: offset + rng.normal(0, 0.22) };
-  }).sort((a, b) => a.time - b.time);
+  // The grid comes from a qualifying session when given; otherwise car + driver pace plus a
+  // little variation decides it.
+  const effects = config.carEffects ?? {};
+  const quali = config.grid
+    ? config.grid.map((id) => ({ driver: getDriver(id), isPlayer: id === config.playerDriverId }))
+    : DRIVERS.map((driver) => {
+        const isPlayer = driver.id === config.playerDriverId;
+        const offset = carPaceOffset({ teamId: driver.teamId, driverId: driver.id, isPlayer, paceBonus: effects[driver.id]?.pace }, config.difficulty);
+        return { driver, isPlayer, time: offset + rng.normal(0, 0.22) };
+      }).sort((a, b) => a.time - b.time);
 
   const cars: CarState[] = quali.map(({ driver, isPlayer }, index) => {
     const team = getTeam(driver.teamId);
@@ -207,6 +220,14 @@ export function createRace(config: RaceConfig): RaceState {
       tyreFailures: 0,
       penaltyTime: 0,
     };
+    const effect = effects[driver.id];
+    if (effect?.pace) car.paceBonus = effect.pace;
+    if (effect?.wear && effect.wear !== 1) car.wearFactor = effect.wear;
+    if (effect?.pit) car.pitBonus = effect.pit;
+    if (effect?.failureRisk) car.failureRisk = effect.failureRisk;
+    for (const [c, n] of Object.entries(effect?.extraSets ?? {})) {
+      if (isCompoundId(c) && typeof n === 'number' && n > 0) car.allocation[c] += Math.floor(n);
+    }
     car.aiStintOffset = drawStintOffset(car, rng, config.difficulty);
     return car;
   });
@@ -401,7 +422,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
         wetness,
         trackTemp,
         safetyCar: sc,
-        smoothness: driver.tyreSmoothness,
+        smoothness: wearSmoothness(car),
       }) * rng.range(0.94, 1.06);
 
     let box = d.box && lap < state.totalLaps;
@@ -428,6 +449,23 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
       );
     }
 
+    // Mechanical failures only exist in season mode, where pre-season mileage improves reliability.
+    if (car.failureRisk && rng.chance(car.failureRisk)) {
+      const failure = rng.pick(['Power unit failure', 'Gearbox failure', 'Hydraulics problem', 'Brake-by-wire fault', 'Energy store fault']);
+      car.status = 'retired';
+      car.retiredLap = lap;
+      car.retiredReason = failure;
+      pushEvent(
+        state,
+        lap,
+        'incident',
+        car.isPlayer ? 'danger' : 'warning',
+        `${code(car)} retires`,
+        `${failure} for ${getDriver(car.driverId).name}.`,
+        { carId: car.id, major: car.isPlayer || car.position <= 5, radio: car.isPlayer ? 'We have to stop the car. Box, box. Sorry, nothing you could do.' : undefined },
+      );
+    }
+
     // Driver mistakes: more likely when pushing, on worn tyres and on the wrong tyre for the conditions.
     const mismatch = suitabilityGap(car.tyre.compound, wetness);
     const errorChance =
@@ -439,7 +477,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
       (1 + (car.tyre.wear / 100) * 0.8) *
       (1 + wetness * 0.8) *
       (sc ? 0.2 : 1);
-    if (rng.chance(errorChance)) {
+    if (car.status === 'running' && rng.chance(errorChance)) {
       const crashShare = mismatch > 1.5 ? CRASH_SHARE_MISMATCH : CRASH_SHARE_DRY;
       const turn = rng.int(1, circuit.corners);
       if (!sc && rng.chance(crashShare)) {
@@ -485,7 +523,7 @@ export function advanceLap(previous: RaceState, decision: PlayerDecision): RaceS
     if (box && car.status === 'running') {
       if (car.allocation[compound] <= 0) compound = fallbackCompound(car, wetness, state.totalLaps - lap);
       laneLoss = sc ? circuit.pitLaneLoss * SC_PIT_FACTOR : circuit.pitLaneLoss;
-      stationary = Math.max(2.1, rng.normal(PIT_STATIONARY_MEAN, PIT_STATIONARY_SD));
+      stationary = Math.max(2.1 - (car.pitBonus ?? 0), rng.normal(PIT_STATIONARY_MEAN - (car.pitBonus ?? 0), PIT_STATIONARY_SD));
       const roll = rng.next();
       if (roll < SLOW_STOP_CHANCE) {
         const extra = rng.range(SLOW_STOP_MIN, SLOW_STOP_MAX);

@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { ArrowLeft, Dices, Flag, Play } from 'lucide-react';
 import { CircuitMap } from '../components/CircuitMap';
 import { Segmented } from '../components/Segmented';
 import { TyreBadge } from '../components/TyreBadge';
-import { DIFFICULTIES } from '../game/constants';
+import { DIFFICULTIES, PIT_STATIONARY_MEAN } from '../game/constants';
 import { CIRCUITS, getCircuit, nextRound } from '../game/data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER } from '../game/data/tyres';
 import { DRIVERS, TEAMS, getDriver, getTeam } from '../game/data/teams';
@@ -40,6 +40,18 @@ const teamRank = (() => {
 export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingScreenProps) {
   const circuit = getCircuit(config.circuitId);
   const upcoming = nextRound();
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // Bring the selected round into view inside the calendar list (without scrolling the page).
+  useEffect(() => {
+    const grid = gridRef.current;
+    const card = grid?.querySelector<HTMLElement>('.circuit-card.is-checked');
+    if (!grid || !card) return;
+    const top = card.offsetTop - grid.offsetTop;
+    if (top < grid.scrollTop || top + card.offsetHeight > grid.scrollTop + grid.clientHeight) grid.scrollTop = top - 8;
+    // Only on first render: later selections are made by the player inside the visible list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const driver = getDriver(config.playerDriverId);
   const team = getTeam(driver.teamId);
   const errors = validateConfig(config);
@@ -87,12 +99,15 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
         >
           <fieldset className="field">
             <legend className="field__label">Grand Prix: 2026 calendar</legend>
-            <div className="circuit-grid">
+            <div className="circuit-grid" ref={gridRef}>
               {CIRCUITS.map((c) => (
                 <label key={c.id} className={`circuit-card${c.id === config.circuitId ? ' is-checked' : ''}`}>
                   <input type="radio" name="circuit" value={c.id} checked={c.id === config.circuitId} onChange={() => set('circuitId', c.id)} />
                   <span className="circuit-card__meta">
-                    <span>Round {c.round}</span>
+                    <span>
+                      Round {c.round}
+                      {c.sprint && <span className="circuit-card__sprint"> · Sprint</span>}
+                    </span>
                     <span>{c.id === upcoming.id ? 'Next race' : c.weekend}</span>
                   </span>
                   <CircuitMap circuit={c} variant="thumb" title={`${c.fullName} layout`} />
@@ -125,9 +140,9 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
 
           <Segmented<RaceLength>
             legend="Race distance"
-            value={config.laps}
+            value={config.laps as RaceLength}
             onChange={(laps) => set('laps', laps)}
-            options={[10, 15, 20].map((n) => ({ value: n as RaceLength, label: `${n} laps`, hint: n === 15 ? 'Quick race' : n === 10 ? 'Sprint' : 'Long' }))}
+            options={[10, 15, 20].map((n) => ({ value: n as RaceLength, label: `${n} laps`, hint: n === 15 ? 'Standard' : n === 10 ? 'Short' : 'Long' }))}
           />
 
           <Segmented<WeatherScenario>
@@ -251,7 +266,7 @@ export function BriefingScreen({ config, onChange, onStart, onBack }: BriefingSc
             </div>
             <div>
               <dt>Pit stop loss</dt>
-              <dd>≈ {(circuit.pitLaneLoss + 2.6).toFixed(1)} s</dd>
+              <dd>≈ {(circuit.pitLaneLoss + PIT_STATIONARY_MEAN).toFixed(1)} s</dd>
             </div>
             <div>
               <dt>Tyre wear</dt>

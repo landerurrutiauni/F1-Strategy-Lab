@@ -12,6 +12,7 @@
 }
 
 .circuit-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--s2);
@@ -200,6 +201,11 @@
     position: static;
   }
 
+  /* Focused fields scrolled into view must clear the floating Start button. */
+  html:has(.briefing__start) {
+    scroll-padding-bottom: 96px;
+  }
+
   /* The intel panel follows the form on narrow screens, so keep Start in reach. */
   .briefing__start {
     position: sticky;
@@ -227,4 +233,8 @@
   .seed-row {
     flex-wrap: wrap;
   }
+}
+
+.circuit-card__sprint {
+  color: var(--amber);
 }

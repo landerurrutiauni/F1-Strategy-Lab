@@ -1,7 +1,10 @@
 import type { CircuitSpec } from '../types';
 import { CIRCUIT_OUTLINES } from './circuitOutlines';
 
-type CircuitInput = Omit<CircuitSpec, 'outline'>;
+type CircuitInput = Omit<CircuitSpec, 'outline' | 'sprint'>;
+
+/** The six 2026 Sprint weekends (Formula 1 and FIA announcement). */
+export const SPRINT_WEEKENDS = new Set(['shanghai', 'miami', 'montreal', 'silverstone', 'zandvoort', 'marina-bay']);
 
 /**
  * The 2026 Formula 1 calendar: 23 rounds (the Saudi Arabian Grand Prix was cancelled and the
@@ -199,7 +202,22 @@ const DATA: CircuitInput[] = [
   },
 ];
 
-export const CIRCUITS: CircuitSpec[] = DATA.map((c) => ({ ...c, outline: CIRCUIT_OUTLINES[c.id] }));
+export const CIRCUITS: CircuitSpec[] = DATA.map((c) => ({ ...c, outline: CIRCUIT_OUTLINES[c.id], sprint: SPRINT_WEEKENDS.has(c.id) }));
+
+/**
+ * Pre-season testing venue: two three-day tests at Sakhir (11–13 and 18–20 February 2026).
+ * Not a 2026 Grand Prix, so it is not part of the calendar above.
+ */
+export const TESTING_CIRCUIT: CircuitSpec = {
+  id: 'sakhir', round: 0, grandPrix: 'Pre-season testing', weekend: '11–13 & 18–20 Feb', raceDate: '2026-02-20',
+  name: 'Sakhir', fullName: 'Bahrain International Circuit', region: 'Sakhir, Bahrain',
+  lengthKm: 5.412, corners: 15, baseLapTime: 92, degradation: 1.25, pitLaneLoss: 23, overtakeDelta: 0.6,
+  rainPropensity: 0, trackTemp: 30, safetyCarChance: 0, sector: 'abrasive',
+  summary: 'Two three-day tests in the desert: the only running before the season. Abrasive asphalt and gusty winds make it a tough tyre test.',
+  traits: ['Abrasive surface', 'Wind affects balance', 'Night running cools the track'],
+  outline: CIRCUIT_OUTLINES.sakhir,
+  sprint: false,
+};
 
 export function getCircuit(id: string): CircuitSpec {
   const circuit = CIRCUITS.find((c) => c.id === id);

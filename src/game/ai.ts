@@ -1,7 +1,7 @@
 import { BOOST_COST, DIFFICULTIES } from './constants';
 import { getCircuit } from './data/circuits';
 import { COMPOUND_ORDER, DRY_COMPOUNDS } from './data/tyres';
-import { getDriver } from './data/teams';
+import { wearSmoothness } from './lapTime';
 import { evaluateStrategies, type ProjectionOptions } from './projection';
 import type { Rng } from './rng';
 import { expectedWear, fastestCompoundFor, suitabilityGap } from './tyreModel';
@@ -163,7 +163,7 @@ function choosePace(car: CarState, state: RaceState, neighbours: Neighbours, pla
     wetness: state.weather.wetness,
     trackTemp: state.weather.trackTemp,
     safetyCar: false,
-    smoothness: getDriver(car.driverId).tyreSmoothness,
+    smoothness: wearSmoothness(car),
   });
   const projectedEndWear = wear + perLap * stintLeft;
 

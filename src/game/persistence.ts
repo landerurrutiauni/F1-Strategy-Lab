@@ -167,7 +167,7 @@ export function buildRaceRecord(state: RaceState, now: Date = new Date()): RaceR
     driverName: getDriver(player.driverId).name,
     teamName: getTeam(player.teamId).name,
     circuitId: state.config.circuitId,
-    circuitName: getCircuit(state.config.circuitId).grandPrix,
+    circuitName: `${getCircuit(state.config.circuitId).grandPrix}${state.config.session === 'sprint' ? ' Sprint' : ''}`,
     laps: state.totalLaps,
     weather: state.config.weather,
     difficulty: state.config.difficulty,

@@ -46,6 +46,8 @@ const CIRCUITS = [
   { id: 'las-vegas', file: 'us-2023', rotate: 270, shift: -0.04 },
   { id: 'lusail', file: 'qa-2004', rotate: 299, shift: -0.02 },
   { id: 'yas-marina', file: 'ae-2009', rotate: 100, shift: -0.026 },
+  // Pre-season testing venue (not a 2026 Grand Prix).
+  { id: 'sakhir', file: 'bh-2002', rotate: 268.5, shift: -0.032 },
 ];
 
 const W = 600;

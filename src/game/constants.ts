@@ -143,6 +143,15 @@ export const ERROR_WEAR = 3;
  */
 export const COMPOUND_RULE_PENALTY = 40;
 
+/** Sprint distance for each Grand Prix distance (real Sprints are about a third of a Grand Prix). */
+export const SPRINT_LAPS = { 10: 5, 15: 8, 20: 10 } as const;
+export const VALID_RACE_LAPS = [10, 15, 20];
+export const VALID_SPRINT_LAPS = [5, 8, 10];
+
+/** Championship points (2026 regulations: no bonus point for the fastest lap). */
+export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+export const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1];
+
 /** Radar horizon in laps. */
 export const FORECAST_HORIZON = 5;
 

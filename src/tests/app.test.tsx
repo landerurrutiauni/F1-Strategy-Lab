@@ -28,6 +28,7 @@ describe('game flow', () => {
     expect(screen.getByRole('heading', { level: 1, name: /F1 Strategy Lab/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'New race' }));
     expect(screen.getByRole('heading', { name: /Race briefing/i })).toBeInTheDocument();
+    expect(screen.getByLabelText('Race seed')).toHaveValue('4242');
     expect(screen.getAllByRole('radio', { name: /Bahrain/ }).length).toBeGreaterThan(0);
     await user.selectOptions(screen.getByLabelText('Your driver'), 'lec');
     expect(screen.getByText(/Race engineer: Bryan Bozzi/)).toBeInTheDocument();
@@ -115,4 +116,68 @@ describe('timing tower', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(22);
     expect(within(list).getByLabelText(/Lando Norris, McLaren \(your car\)/)).toBeInTheDocument();
   });
+});
+
+describe('season mode', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, '', '/');
+  });
+
+  /** Clicks the button for the next qualifying segment, or finishes the session after a knock-out. */
+  async function runQualifying(user: ReturnType<typeof userEvent.setup>) {
+    for (let i = 0; i < 3; i++) {
+      const finish = screen.queryByRole('button', { name: 'Finish the session' });
+      if (finish) {
+        await user.click(finish);
+        return;
+      }
+      const run = screen.queryByRole('button', { name: /^Run S?Q[123]$/ });
+      if (!run) return;
+      await user.click(run);
+    }
+  }
+
+  it('runs testing, a full race weekend and keeps the championship', async () => {
+    const user = userEvent.setup();
+    const first = renderApp();
+    await user.click(screen.getByRole('button', { name: /2026 season/ }));
+    expect(screen.getByRole('heading', { name: 'New season' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Your driver'), 'alb');
+    await user.click(screen.getByRole('button', { name: 'Start the season' }));
+
+    // Pre-season testing in Bahrain.
+    expect(screen.getByRole('heading', { name: 'Pre-season testing' })).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Reliability mileage/ }));
+    await user.click(screen.getByRole('button', { name: 'Run day 1' }));
+    expect(screen.getByText(/Reliability mileage: reliability 0% →/)).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: /Test 1 day 1 timesheet/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Skip the rest of testing' }));
+
+    // Round 1: three practice sessions, qualifying and the Grand Prix.
+    expect(screen.getByRole('heading', { name: 'Australian Grand Prix' })).toBeInTheDocument();
+    for (const fp of ['FP1', 'FP2', 'FP3']) await user.click(screen.getByRole('button', { name: `Run ${fp}` }));
+    expect(screen.getByRole('table', { name: 'Practice 3 classification' })).toBeInTheDocument();
+    await runQualifying(user);
+    expect(screen.getByRole('heading', { name: /Grand Prix: 15 laps/ })).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Qualifying result' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Let the strategist run it/ }));
+
+    // Round 2 is a Sprint weekend.
+    expect(screen.getByRole('heading', { name: /Round 1: Australian Grand Prix/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Chinese Grand Prix' })).toBeInTheDocument();
+    expect(screen.getAllByText('Sprint weekend').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Run FP1' }));
+    expect(screen.getByRole('heading', { name: /Sprint Qualifying: SQ1/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Standings' }));
+    expect(screen.getByRole('table', { name: 'Drivers’ championship' })).toBeInTheDocument();
+    expect(within(screen.getByRole('table', { name: 'Drivers’ championship' })).getAllByRole('row')).toHaveLength(23);
+
+    // The season survives a reload.
+    first.unmount();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /Continue 2026 season/ }));
+    expect(screen.getByRole('heading', { name: /Sprint Qualifying: SQ1/ })).toBeInTheDocument();
+  }, 60_000);
 });

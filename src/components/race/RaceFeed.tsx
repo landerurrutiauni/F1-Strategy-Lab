@@ -53,10 +53,13 @@ export const RaceFeed = memo(function RaceFeed({ events, engineer, currentLap, c
                 <p className="feed__title">{event.title}</p>
                 <p className="feed__detail">{event.detail}</p>
                 {event.radio && (
-                  <p className="feed__radio">
-                    <Radio size={13} aria-hidden="true" />
-                    <span className="feed__speaker">{engineer}:</span> “{event.radio}”
-                  </p>
+                  <div className="feed__radio">
+                    <p className="feed__radio-head">
+                      <Radio size={13} aria-hidden="true" />
+                      {engineer}, team radio
+                    </p>
+                    <p>“{event.radio}”</p>
+                  </div>
                 )}
               </div>
             </li>

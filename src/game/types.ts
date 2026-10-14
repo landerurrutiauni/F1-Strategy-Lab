@@ -16,6 +16,26 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 export type StrategyProfile = 'player' | 'aggressive' | 'conservative' | 'adaptive' | 'balanced';
 export type RaceLength = 10 | 15 | 20;
 
+/** Sprint distance in laps (about half of the matching Grand Prix distance). */
+export type SprintLength = 5 | 8 | 10;
+
+/** A Grand Prix or the shorter Saturday Sprint (no pit-stop compound rule, fewer points). */
+export type RaceSession = 'race' | 'sprint';
+
+/** Season-long or weekend effects on one car (from testing, practice and team development). */
+export interface CarEffects {
+  /** Seconds per lap added to the car's pace (negative is faster). */
+  pace?: number;
+  /** Multiplier on tyre wear (below 1 means gentler on the tyres). */
+  wear?: number;
+  /** Seconds taken off the pit crew's stationary time. */
+  pit?: number;
+  /** Chance per lap of a mechanical retirement (season mode only). */
+  failureRisk?: number;
+  /** Extra new sets for the race (e.g. a soft set saved in qualifying). */
+  extraSets?: Partial<Record<CompoundId, number>>;
+}
+
 /** Optional deterministic scenarios used for testing and challenge setups. */
 export type ScenarioId = 'none' | 'safety-car-early' | 'safety-car-late' | 'storm' | 'drying';
 
@@ -80,6 +100,8 @@ export interface CircuitSpec {
   /** Closed track outline in a 600×400 view box, in racing direction from the start/finish line. */
   outline: Array<[number, number]>;
   sector: 'street' | 'speed' | 'abrasive' | 'flowing';
+  /** Sprint weekend (Sprint Qualifying and a Sprint on Friday and Saturday). */
+  sprint: boolean;
 }
 
 export interface TeamSpec {
@@ -195,6 +217,11 @@ export interface CarState {
   tyreFailures: number;
   /** Seconds of penalties applied at classification. */
   penaltyTime: number;
+  /** Season effects (absent in quick races). */
+  paceBonus?: number;
+  wearFactor?: number;
+  pitBonus?: number;
+  failureRisk?: number;
 }
 
 export interface WeatherState {
@@ -263,12 +290,20 @@ export interface RaceConfig {
   circuitId: string;
   /** The driver whose strategy the player controls. */
   playerDriverId: string;
-  laps: RaceLength;
+  laps: RaceLength | SprintLength;
   startCompound: CompoundId;
   weather: WeatherScenario;
   difficulty: Difficulty;
   seed: number;
   scenario?: ScenarioId;
+  /** Grand Prix (default) or Sprint. */
+  session?: RaceSession;
+  /** Starting order as driver ids (from qualifying). Without it a quick qualifying is simulated. */
+  grid?: string[];
+  /** Per-driver effects keyed by driver id. */
+  carEffects?: Record<string, CarEffects>;
+  /** Championship round this race belongs to (season mode). */
+  seasonRound?: number;
 }
 
 export interface ScheduledEvents {

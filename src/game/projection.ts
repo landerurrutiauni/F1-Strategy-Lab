@@ -7,11 +7,10 @@ import {
 } from './constants';
 import { getCircuit } from './data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER, DRY_COMPOUNDS } from './data/tyres';
-import { getDriver } from './data/teams';
-import { carPaceOffset, computeLapTime, safetyCarLapTime } from './lapTime';
+import { carPaceOffset, computeLapTime, safetyCarLapTime, wearSmoothness } from './lapTime';
 import { expectedWear, failureChance } from './tyreModel';
 import { climatologyRain, nextWetness } from './weather';
-import type { CarState, CircuitSpec, CompoundId, PaceMode, RaceState } from './types';
+import type { CarState, CircuitSpec, CompoundId, PaceMode, RaceSession, RaceState } from './types';
 
 /**
  * Strategy projection.
@@ -85,6 +84,9 @@ interface ProjectionContext {
   trackTemp: number;
   carOffset: number;
   smoothness: number;
+  /** Seconds off the stationary time from the car's pit crew. */
+  pitBonus: number;
+  session: RaceSession;
   pace: PaceMode;
   bias: Partial<Record<CompoundId, number>>;
 }
@@ -121,7 +123,9 @@ function buildContext(state: RaceState, car: CarState, options: ProjectionOption
     scLaps,
     trackTemp: state.weather.trackTemp,
     carOffset: carPaceOffset(car, state.config.difficulty),
-    smoothness: getDriver(car.driverId).tyreSmoothness,
+    smoothness: wearSmoothness(car),
+    pitBonus: car.pitBonus ?? 0,
+    session: state.config.session ?? 'race',
     pace: options.pace ?? 'standard',
     bias: options.compoundBias ?? {},
   };
@@ -180,11 +184,15 @@ function buildStint(ctx: ProjectionContext, compound: CompoundId, startLap: numb
 
 function pitCost(ctx: ProjectionContext, lap: number, stopPenalty: number): number {
   const lane = ctx.scLaps.has(lap) ? ctx.circuit.pitLaneLoss * SC_PIT_FACTOR : ctx.circuit.pitLaneLoss;
-  return lane + PIT_STATIONARY_MEAN + stopPenalty;
+  return lane + PIT_STATIONARY_MEAN - ctx.pitBonus + stopPenalty;
 }
 
-/** Penalty for finishing a fully dry race without using two different dry compounds. */
-export function compoundRulePenalty(compounds: Iterable<CompoundId>): number {
+/**
+ * Penalty for finishing a fully dry Grand Prix without using two different dry compounds.
+ * Sprints have no such rule.
+ */
+export function compoundRulePenalty(compounds: Iterable<CompoundId>, session: RaceSession = 'race'): number {
+  if (session === 'sprint') return 0;
   const set = new Set(compounds);
   if (set.has('inter') || set.has('wet')) return 0;
   const dryUsed = DRY_COMPOUNDS.filter((c) => set.has(c)).length;
@@ -235,7 +243,7 @@ export function evaluateStrategies(state: RaceState, carId: string, options: Pro
   const finalize = (stops: PlanStop[], time: number, risk: number, maxWear: number) => {
     const used = new Set(baseUsed);
     stops.forEach((s) => used.add(s.compound));
-    const penalty = compoundRulePenalty(used);
+    const penalty = compoundRulePenalty(used, ctx.session);
     plans.push({
       stops,
       totalTime: car.elapsed + time + risk + penalty,
@@ -428,7 +436,7 @@ export function estimateRejoin(state: RaceState, carId: string): RejoinEstimate 
           boost: false,
           freshFromPit: false,
         }).total);
-  const pitLoss = (sc ? circuit.pitLaneLoss * SC_PIT_FACTOR : circuit.pitLaneLoss) + PIT_STATIONARY_MEAN;
+  const pitLoss = (sc ? circuit.pitLaneLoss * SC_PIT_FACTOR : circuit.pitLaneLoss) + PIT_STATIONARY_MEAN - (car.pitBonus ?? 0);
   const mine = expectedEnd(car) + pitLoss;
   const others = state.cars
     .filter((c) => c.id !== carId && c.status === 'running')

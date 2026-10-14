@@ -1,0 +1,401 @@
+/* ---------- Season mode ---------- */
+.season__layout {
+  display: grid;
+  gap: var(--s4);
+}
+
+.season-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s2) var(--s6);
+  padding: var(--s3) var(--s4);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-left: 3px solid var(--lime);
+  border-radius: var(--radius);
+}
+
+.season-bar__driver {
+  flex: 1 1 280px;
+  min-width: 0;
+  font-weight: 650;
+}
+
+.season-bar__stat {
+  display: inline-flex;
+  gap: var(--s2);
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+.season-bar__stat strong {
+  font-family: var(--font-display);
+  font-stretch: 75%;
+  font-size: var(--text-lg);
+  font-weight: 750;
+}
+
+.season-bar__warn {
+  flex-basis: 100%;
+  color: var(--amber);
+  font-size: var(--text-sm);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: var(--s1);
+  border-bottom: var(--line);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.tabs__tab {
+  padding: var(--s3) var(--s4);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--graphite);
+  font-weight: 650;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+
+.tabs__tab:hover {
+  color: var(--paper);
+}
+
+.tabs__tab.is-active {
+  color: var(--paper);
+  border-bottom-color: var(--lime);
+}
+
+.season__panel {
+  min-width: 0;
+}
+
+.season-main {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+.season-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: var(--s4);
+  align-items: start;
+}
+
+.season-split--even {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.season-stack {
+  display: grid;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+/* Weekend header */
+.weekend-head {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: center;
+}
+
+.weekend-head__map {
+  padding: var(--s2);
+  background: var(--carbon-950);
+  border-radius: var(--radius);
+}
+
+.weekend-head__kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--graphite);
+}
+
+.weekend-head__title {
+  margin: var(--s1) 0 var(--s2);
+  font-size: var(--text-2xl);
+  line-height: 0.95;
+}
+
+.tag--sprint {
+  background: var(--amber-wash);
+  color: var(--amber);
+  letter-spacing: 0.04em;
+}
+
+/* Session timeline */
+.session-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-chip {
+  display: grid;
+  gap: 2px;
+  padding: var(--s2) var(--s3);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-top: 3px solid var(--carbon-600);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.session-chip.is-done {
+  border-top-color: var(--graphite-dim);
+}
+
+.session-chip.is-current {
+  border-top-color: var(--lime);
+  background: var(--carbon-800);
+}
+
+.session-chip__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-weight: 650;
+  font-size: var(--text-sm);
+}
+
+.session-chip.is-done .session-chip__name svg {
+  color: var(--lime);
+}
+
+.session-chip__day {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--text-xs);
+  color: var(--graphite);
+  overflow-wrap: anywhere;
+}
+
+.session-weather {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+  color: var(--paper-dim);
+}
+
+.session-weather svg {
+  flex: none;
+  color: var(--blue);
+}
+
+/* Meters */
+.meters {
+  display: grid;
+  gap: var(--s4);
+}
+
+.meter__head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  font-size: var(--text-sm);
+}
+
+.meter__label {
+  font-weight: 650;
+}
+
+.meter__track {
+  height: 6px;
+  margin: 6px 0 4px;
+  background: var(--carbon-700);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.meter__fill {
+  display: block;
+  height: 100%;
+  background: var(--lime);
+  border-radius: 3px;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+.meter__effect {
+  font-size: var(--text-xs);
+}
+
+.season-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+
+.season-actions > p {
+  flex-basis: 100%;
+}
+
+.notes {
+  display: grid;
+  gap: var(--s1);
+  margin: 0 0 var(--s3);
+  padding: 0;
+  list-style: none;
+  color: var(--paper-dim);
+  font-size: var(--text-sm);
+}
+
+.notes li {
+  display: flex;
+  gap: var(--s2);
+  align-items: baseline;
+}
+
+.notes svg {
+  flex: none;
+  color: var(--lime);
+}
+
+.segment-result {
+  margin-top: var(--s5);
+}
+
+.segment-result__title {
+  margin-bottom: var(--s2);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--paper-dim);
+}
+
+/* Knock-out line in timesheets */
+.table tr.is-cut td {
+  border-bottom: 2px dashed var(--red);
+}
+
+.grid-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s1) var(--s4);
+  margin: 0;
+  padding: 0 var(--s4) var(--s4);
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.grid-list li {
+  display: flex;
+  gap: var(--s2);
+  padding: 2px var(--s2);
+  border-radius: var(--radius-sm);
+}
+
+.grid-list li:nth-child(even) {
+  transform: translateY(10px);
+}
+
+.grid-list li.is-player {
+  background: var(--lime-wash);
+  color: var(--lime);
+  font-weight: 650;
+}
+
+.grid-list .num {
+  min-width: 2ch;
+  color: var(--graphite);
+}
+
+.last-round {
+  border-left: 3px solid var(--lime);
+}
+
+.last-round__headline {
+  margin-bottom: var(--s3);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.standings__points {
+  font-weight: 700;
+}
+
+.season-review {
+  padding: var(--s6);
+  border-left: 3px solid var(--lime);
+}
+
+/* Setup */
+.season-setup__layout {
+  max-width: 720px;
+}
+
+.season-setup__lede {
+  color: var(--paper-dim);
+  font-size: var(--text-md);
+}
+
+.menu__season {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+@media (max-width: 1100px) {
+  .season-split,
+  .season-split--even {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .weekend-head {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: var(--s3);
+  }
+
+  .weekend-head__title {
+    font-size: var(--text-xl);
+  }
+
+  .weekend-head .muted {
+    display: none;
+  }
+
+  .session-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .season-bar {
+    gap: var(--s2) var(--s4);
+  }
+}
+
+/* Programme and run-plan pickers wrap into rows instead of squeezing four columns. */
+.season .segmented--grid .segmented__options {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.season .field {
+  margin-top: var(--s4);
+}
+
+.season .segmented {
+  margin-top: var(--s4);
+}

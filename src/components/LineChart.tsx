@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 export interface ChartSeries {
   id: string;
@@ -25,7 +25,8 @@ interface LineChartProps {
   markers?: Array<{ lap: number; label: string }>;
 }
 
-const W = 320;
+/** Drawing width before the container has been measured. */
+const DEFAULT_WIDTH = 320;
 const PAD_L = 40;
 const PAD_R = 10;
 const PAD_T = 10;
@@ -45,6 +46,20 @@ export const LineChart = memo(function LineChart({
   markers = [],
 }: LineChartProps) {
   const H = height;
+  // Match the drawing width to the rendered width so labels keep their size on wide screens.
+  const frameRef = useRef<HTMLElement>(null);
+  const [W, setW] = useState(DEFAULT_WIDTH);
+  useLayoutEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => {
+      const width = Math.round(entry.contentRect.width);
+      if (width > 0) setW(width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const { lo, hi } = useMemo(() => {
     const all = series.flatMap((s) => s.values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v)));
     let low = yMin ?? (all.length ? Math.min(...all) : 0);
@@ -65,18 +80,24 @@ export const LineChart = memo(function LineChart({
   const ticks = [0, 0.5, 1].map((t) => lo + (hi - lo) * t);
   const lapTicks = Array.from(new Set([1, Math.round(maxLap / 2), maxLap]));
 
+  const isValue = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
   const paths = series.map((s) => {
     let d = '';
     let pen = false;
+    // Laps with no neighbouring value would be invisible as a path, so they get a dot.
+    const dots: Array<[number, number]> = [];
     s.values.forEach((v, lap) => {
-      if (lap < 1 || typeof v !== 'number' || !Number.isFinite(v)) {
+      if (lap < 1 || !isValue(v)) {
         pen = false;
         return;
       }
-      d += `${pen ? 'L' : 'M'}${x(lap).toFixed(1)} ${y(Math.min(hi, Math.max(lo, v))).toFixed(1)}`;
+      const px = x(lap);
+      const py = y(Math.min(hi, Math.max(lo, v)));
+      d += `${pen ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`;
+      if (!pen && !isValue(s.values[lap + 1])) dots.push([px, py]);
       pen = true;
     });
-    return { s, d };
+    return { s, d, dots };
   });
 
   const summary = series
@@ -87,7 +108,7 @@ export const LineChart = memo(function LineChart({
     .join('; ');
 
   return (
-    <figure className="chart">
+    <figure className="chart" ref={frameRef}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}. Latest values: ${summary}`}>
         {shadedLaps.map((lap) => (
           <rect
@@ -120,18 +141,22 @@ export const LineChart = memo(function LineChart({
             </text>
           </g>
         ))}
-        {paths.map(({ s, d }) => (
-          <path
-            key={s.id}
-            d={d}
-            fill="none"
-            stroke={s.color}
-            strokeWidth={s.emphasis ? 2.4 : 1.5}
-            strokeDasharray={s.dashed ? '4 3' : undefined}
-            vectorEffect="non-scaling-stroke"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
+        {paths.map(({ s, d, dots }) => (
+          <g key={s.id}>
+            <path
+              d={d}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={s.emphasis ? 2.4 : 1.5}
+              strokeDasharray={s.dashed ? '4 3' : undefined}
+              vectorEffect="non-scaling-stroke"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {dots.map(([cx, cy]) => (
+              <circle key={cx} cx={cx} cy={cy} r={s.emphasis ? 2.6 : 2} fill={s.color} />
+            ))}
+          </g>
         ))}
       </svg>
       <figcaption className="chart__legend">

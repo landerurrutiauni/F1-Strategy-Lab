@@ -11,6 +11,7 @@ import './styles/briefing.css';
 import './styles/race.css';
 import './styles/results.css';
 import './styles/pages.css';
+import './styles/season.css';
 import App from './App';
 import { SettingsProvider } from './hooks/settings';
 

@@ -80,7 +80,7 @@ export const TimingTower = memo(function TimingTower({ rows, gapMode, lapKey, re
               <span className="tower__pos">{row.retired ? '–' : row.position}</span>
               <span className="tower__team" style={{ background: row.color }} aria-hidden="true" />
               <span className="tower__driver" title={`${row.name}, ${row.teamName}`}>
-                <span className="tower__code">{row.code}</span>
+                <span className="tower__code" translate="no">{row.code}</span>
                 {row.change !== 0 && (
                   <span className={`tower__change ${row.change > 0 ? 'is-up' : 'is-down'}`} aria-hidden="true">
                     {row.change > 0 ? <ArrowUp size={11} /> : <ArrowDown size={11} />}

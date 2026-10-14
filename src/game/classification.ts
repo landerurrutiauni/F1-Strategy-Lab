@@ -14,7 +14,7 @@ export function classify(state: RaceState): ClassificationEntry[] {
   const finishers = state.cars.filter((c) => c.status === 'running');
   const retired = state.cars.filter((c) => c.status === 'retired');
 
-  for (const car of finishers) car.penaltyTime = compoundRulePenalty(car.usedCompounds);
+  for (const car of finishers) car.penaltyTime = compoundRulePenalty(car.usedCompounds, state.config.session);
 
   // Leader's raw time on the road decides when the flag falls.
   const flagTime = Math.min(...finishers.map((c) => c.elapsed));

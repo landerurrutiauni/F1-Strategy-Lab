@@ -342,14 +342,29 @@
 /* ---------- Tyres panel ---------- */
 .tyres__main {
   display: grid;
-  grid-template-columns: 112px 1fr;
+  grid-template-columns: 104px minmax(0, 1fr);
   gap: var(--s4);
   align-items: center;
 }
 
 .tyre-gauge {
-  width: 112px;
-  height: 112px;
+  width: 104px;
+  height: 104px;
+}
+
+.tyres__sets-label {
+  margin-bottom: var(--s2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--graphite);
+}
+
+.tyres__facts {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--carbon-700);
 }
 
 .tyre-gauge__rubber {
@@ -408,10 +423,7 @@
 .sets {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s3);
-  margin-top: var(--s3);
-  padding-top: var(--s3);
-  border-top: 1px solid var(--carbon-700);
+  gap: var(--s2) var(--s3);
 }
 
 .sets__item {
@@ -596,9 +608,6 @@
 }
 
 .feed__radio {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
   margin-top: 4px;
   padding: 4px var(--s2);
   border-radius: var(--radius-sm);
@@ -608,17 +617,13 @@
   color: var(--paper);
 }
 
-.feed__radio svg {
-  flex: none;
-  align-self: center;
-  color: var(--lime);
-}
-
-.feed__speaker {
+.feed__radio-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
   font-style: normal;
   font-weight: 650;
   color: var(--lime);
-  white-space: nowrap;
 }
 
 /* ---------- Telemetry ---------- */
@@ -705,13 +710,18 @@
     max-height: none;
   }
 
+  /* Focused controls scrolled into view must clear the sticky action bar. */
+  html:has(.deck__actions) {
+    scroll-padding-bottom: 120px;
+  }
+
   /* Keep the main action reachable while scrolling on small screens. */
   .deck__actions {
     position: sticky;
     bottom: 0;
     z-index: 5;
     margin: var(--s4) calc(var(--s4) * -1) calc(var(--s4) * -1);
-    padding: var(--s3) var(--s4);
+    padding: var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom, 0px));
     background: var(--carbon-850);
     border-top: 1px solid var(--carbon-600);
   }

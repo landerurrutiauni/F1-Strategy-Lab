@@ -4,6 +4,7 @@
  */
 import { getCircuit } from './data/circuits';
 import { getDriver, getTeam } from './data/teams';
+import { wearSmoothness } from './lapTime';
 import { degradationPenalty, expectedWear, lapsUntilWear } from './tyreModel';
 import type { CarState, RaceState } from './types';
 
@@ -90,7 +91,7 @@ export function tyreOutlook(state: RaceState, car: CarState, pace = car.pace): T
     wetness: state.weather.wetness,
     trackTemp: state.weather.trackTemp,
     safetyCar: state.safetyCar.active,
-    smoothness: getDriver(car.driverId).tyreSmoothness,
+    smoothness: wearSmoothness(car),
   });
   return {
     wearPerLap,
