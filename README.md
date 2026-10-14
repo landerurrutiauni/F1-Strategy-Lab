@@ -17,7 +17,7 @@ Play a single race, or a whole **2026 season**: pre-season testing in Bahrain, t
   - Knock-out qualifying (six cars out in Q1 and Q2, top ten in Q3) with your tyre and run-plan choice per segment. Sprint Qualifying uses mediums in SQ1/SQ2 and softs in SQ3 when dry.
   - Run Sprints and Grands Prix live on the pit wall, or let the team strategist simulate them.
   - 2026 points (25-18-15-12-10-8-6-4-2-1 and 8-7-6-5-4-3-2-1, no fastest-lap point), drivers' and constructors' standings with countback, in-season upgrades, mechanical reliability, weekend weather forecasts and a season review.
-- **Live race screen**: lap-by-lap timing tower with animated position changes, circuit map with every car, tyre panel (wear gauge, useful life, pit window, wrong-tyre warning), strategy outlook (projected 0/1/2-stop plans, pit-now delta, rejoin estimate), five-lap weather radar, race control and team radio feed, telemetry charts, overtake boost, keyboard shortcuts.
+- **Live race**: after the start lights the race runs in real time. All 22 cars lap the real circuit at their own lap times (overtakes, pit-lane stops at the box, the Safety Car leading the pack, retirements), with pause, 1×–8× speed, a next-lap skip and automatic pauses for key moments. Your call for the next lap locks in when the leader starts it. Alongside: timing tower with animated position changes, tyre panel (wear gauge, useful life, pit window, wrong-tyre warning), strategy outlook (projected 0/1/2-stop plans, pit-now delta, rejoin estimate), five-lap weather radar, race control and team radio feed, telemetry charts, overtake boost, keyboard shortcuts.
 - **Results**: classification, gaps, pit stops, stint chart, telemetry, major events, an explainable strategy rating (pit calls, tyre management, weather calls, execution; luck reported separately), key decisions and a lap-by-lap summary.
 - **Records** and the season are stored in `localStorage` (versioned and validated). An unfinished race is saved every lap and can be resumed.
 - Accessibility: keyboard play, visible focus, skip link, live announcements, reduced-motion setting (also follows the OS preference), colour never the only signal.
@@ -74,6 +74,8 @@ scripts/build-circuits.mjs   converts the circuit dataset into game outlines
 ```
 
 ## Simulation model
+
+**Live playback** (`src/game/replay.ts`, `src/hooks/useRacePlayback.ts`): the engine still works lap by lap, one lap ahead of what you see. When the leader starts a lap, that lap is computed for the whole field with your current call. Every car's lap records become a timeline, so the map can place each car at any moment: from its grid slot, at its own pace through the lap, down the pit lane with the stationary stop at its box, stopped on track after a retirement, and over the line at the flag. The timing tower and panels move on when the leader crosses the line, so nothing is revealed early. At 1× a lap takes about 12 seconds.
 
 All randomness comes from a seeded generator (mulberry32) whose state is stored in the race state, so **the same seed and the same decisions always give the same race**. `advanceLap(state, decision)` is pure: it clones the state, simulates one lap for all 22 cars and returns the new state. The constants below live in `src/game/constants.ts` and `src/game/data/tyres.ts`.
 

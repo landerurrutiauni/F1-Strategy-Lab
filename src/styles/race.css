@@ -316,10 +316,6 @@
   border-top: 1px solid var(--carbon-700);
 }
 
-.advance {
-  min-width: 260px;
-}
-
 .deck__keys {
   font-size: var(--text-xs);
 }
@@ -710,25 +706,25 @@
     max-height: none;
   }
 
-  /* Focused controls scrolled into view must clear the sticky action bar. */
-  html:has(.deck__actions) {
+  /* Focused controls scrolled into view must clear the sticky playback bar. */
+  html:has(.transport) {
     scroll-padding-bottom: 120px;
   }
 
-  /* Keep the main action reachable while scrolling on small screens. */
-  .deck__actions {
-    position: sticky;
+  /* Keep pause and speed within reach while scrolling on small screens. */
+  .transport {
+    position: fixed;
+    right: 0;
     bottom: 0;
-    z-index: 5;
-    margin: var(--s4) calc(var(--s4) * -1) calc(var(--s4) * -1);
-    padding: var(--s3) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom, 0px));
-    background: var(--carbon-850);
+    left: 0;
+    z-index: 20;
+    padding-bottom: calc(var(--s3) + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--carbon-600);
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 0.45);
   }
 
-  .advance {
-    flex: 1;
-    min-width: 0;
+  .race {
+    padding-bottom: 140px;
   }
 
   .deck__keys {
@@ -777,4 +773,97 @@
   .map-frame {
     padding: var(--s2);
   }
+}
+
+/* ---------- Live playback ---------- */
+.transport {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--carbon-700);
+  background: var(--carbon-850);
+}
+
+.transport__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.transport__main {
+  min-width: 150px;
+}
+
+.transport__speed .segmented__options {
+  grid-auto-columns: minmax(44px, auto);
+}
+
+.transport__speed .segmented__option {
+  padding: var(--s2) var(--s3);
+  text-align: center;
+}
+
+.transport__paused {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--amber-wash);
+  border-left: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+  color: var(--amber);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.playback__lock {
+  font-size: var(--text-sm);
+}
+
+/* Cars in the live map */
+.circuit-map__car[data-phase='stopped'] {
+  opacity: 0.35;
+}
+
+.circuit-map__car[data-phase='finished'] {
+  opacity: 0.7;
+}
+
+.circuit-map__car[data-phase='pit'] circle:not(.circuit-map__halo) {
+  stroke: var(--paper);
+}
+
+/* Start lights over the map */
+.start-lights {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  gap: var(--s2);
+  padding: var(--s3);
+  background: rgb(13 16 18 / 0.88);
+  border: 1px solid var(--carbon-600);
+  border-radius: var(--radius);
+  transform: translate(-50%, -50%);
+}
+
+.start-lights__pod {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  background: var(--carbon-950);
+  border-radius: 6px;
+}
+
+.start-lights__pod span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2a1414;
+}
+
+.start-lights__pod.is-lit span {
+  background: #ff2d2d;
+  box-shadow: 0 0 12px rgb(255 45 45 / 0.75);
 }

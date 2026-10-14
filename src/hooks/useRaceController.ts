@@ -20,7 +20,8 @@ export interface RaceController {
   start(config: RaceConfig): RaceState;
   resume(): boolean;
   updateDecision(patch: Partial<PlayerDecision>): void;
-  advance(): RaceState | null;
+  /** Runs the next lap with the current decision (or `override`, e.g. a corrected one). */
+  advance(override?: PlayerDecision): RaceState | null;
   finishAfterRetirement(): RaceState | null;
   abandon(): void;
 }
@@ -76,15 +77,16 @@ export function useRaceController(): RaceController {
     setDecision((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const advance = useCallback(() => {
+  const advance = useCallback((override?: PlayerDecision) => {
     if (!race || race.phase !== 'running') return null;
-    if (validateDecision(race, decision)) return null;
-    const next = advanceLap(race, decision);
+    const applied = override ?? decision;
+    if (validateDecision(race, applied)) return null;
+    const next = advanceLap(race, applied);
     setRace(next);
     if (next.phase === 'finished') {
       setSaveStatus(finalize(next));
     } else {
-      const upcoming = nextDecision(next, decision);
+      const upcoming = nextDecision(next, applied);
       setDecision(upcoming);
       saveActiveRace(next, upcoming);
     }

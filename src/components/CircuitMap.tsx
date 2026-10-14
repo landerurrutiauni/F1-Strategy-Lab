@@ -1,6 +1,18 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { PIT_ENTRY, PIT_EXIT, positionAt, type CarTimeline } from '../game/replay';
 import { circuitGeometry } from '../game/trackGeometry';
 import type { CircuitSpec } from '../game/types';
+
+/** Live mode: cars are placed every frame from their timelines at the playback's race time. */
+export interface LiveFeed {
+  subscribe(listener: (time: number) => void): () => void;
+  timelines(): CarTimeline[];
+  /** Laps run behind the Safety Car (lap number → true). */
+  safetyCarLap(lap: number): boolean;
+}
+
+/** Sideways distance of the pit lane from the racing line (map units). */
+const PIT_OFFSET = -15;
 
 export interface MapCar {
   id: string;
@@ -23,6 +35,7 @@ interface CircuitMapProps {
   variant?: 'race' | 'preview' | 'thumb' | 'hero';
   title?: string;
   className?: string;
+  live?: LiveFeed;
 }
 
 const ANIMATION_MS = 1500;
@@ -45,6 +58,7 @@ export const CircuitMap = memo(function CircuitMap({
   variant = 'race',
   title,
   className,
+  live,
 }: CircuitMapProps) {
   const geometry = useMemo(() => circuitGeometry(circuit), [circuit]);
   const carRefs = useRef(new Map<string, SVGGElement>());
@@ -64,7 +78,57 @@ export const CircuitMap = memo(function CircuitMap({
     el.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
   };
 
+  // Live mode: every car is drawn where its timeline puts it at the current race time.
+  const posRefs = useRef(new Map<string, SVGTextElement>());
   useLayoutEffect(() => {
+    if (!live) return;
+    let lastDraw = -Infinity;
+    const draw = (time: number) => {
+      const now = typeof performance !== 'undefined' ? performance.now() : 0;
+      // With reduced motion the cars still move, but jump once a second instead of gliding.
+      if (reducedMotion && now - lastDraw < 1000 && lastDraw !== -Infinity) return;
+      lastDraw = now;
+      const placed = live.timelines().map((tl) => ({ id: tl.id, p: positionAt(tl, time) }));
+      const order = [...placed].sort((a, b) => Number(a.p.phase === 'stopped') - Number(b.p.phase === 'stopped') || b.p.distance - a.p.distance);
+      order.forEach((car, i) => {
+        const label = posRefs.current.get(car.id);
+        if (label && label.textContent !== String(i + 1)) label.textContent = String(i + 1);
+      });
+      for (const { id, p } of placed) {
+        const el = carRefs.current.get(id);
+        if (!el) continue;
+        let x: number;
+        let y: number;
+        const point = geometry.pointAt(p.fraction);
+        if (p.inPit) {
+          // Ease sideways into the pit lane and back out onto the track.
+          const k = p.fraction > 0.5 ? Math.min(1, (p.fraction - PIT_ENTRY) / 0.012) : Math.min(1, (PIT_EXIT - p.fraction) / 0.012);
+          const tangent = geometry.tangentAt(p.fraction);
+          const offset = PIT_OFFSET * Math.max(0, k);
+          x = point.x - tangent.y * offset;
+          y = point.y + tangent.x * offset;
+        } else {
+          x = point.x;
+          y = point.y;
+        }
+        el.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+        if (el.dataset.phase !== p.phase) el.dataset.phase = p.phase;
+      }
+      const sc = scRef.current;
+      if (sc) {
+        const leader = order[0];
+        const lap = leader ? Math.floor(leader.p.distance) + 1 : 0;
+        const show = !!leader && leader.p.phase !== 'finished' && live.safetyCarLap(lap);
+        sc.style.display = show ? '' : 'none';
+        if (show) place(sc, leader.p.fraction + 0.025);
+      }
+    };
+    return live.subscribe(draw);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [live, geometry, reducedMotion]);
+
+  useLayoutEffect(() => {
+    if (live) return;
     const changed = lapKey !== lastLapKey.current;
     lastLapKey.current = lapKey;
     if (frame.current !== null) cancelAnimationFrame(frame.current);
@@ -103,7 +167,7 @@ export const CircuitMap = memo(function CircuitMap({
     };
     frame.current = requestAnimationFrame(tick);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lapKey, cars, reducedMotion, geometry, leaderFraction]);
+  }, [lapKey, cars, reducedMotion, geometry, leaderFraction, live]);
 
   useEffect(
     () => () => {
@@ -142,8 +206,8 @@ export const CircuitMap = memo(function CircuitMap({
           Pit lane
         </text>
       )}
-      {showCars && safetyCar && (
-        <g ref={scRef} className="circuit-map__sc" aria-hidden="true">
+      {showCars && (safetyCar || live) && (
+        <g ref={scRef} className="circuit-map__sc" aria-hidden="true" style={live ? { display: 'none' } : undefined}>
           <rect x={-13} y={-8} width={26} height={16} rx={2} />
           <text y={0.5} textAnchor="middle" dominantBaseline="central">
             SC
@@ -163,7 +227,16 @@ export const CircuitMap = memo(function CircuitMap({
           >
             {car.isPlayer && <circle r={13} className="circuit-map__halo" />}
             <circle r={car.isPlayer ? 9 : 8} fill={car.color} stroke="var(--carbon-950)" strokeWidth={2} />
-            <text y={0.5} textAnchor="middle" dominantBaseline="central" className="circuit-map__pos">
+            <text
+              ref={(el) => {
+                if (el) posRefs.current.set(car.id, el);
+                else posRefs.current.delete(car.id);
+              }}
+              y={0.5}
+              textAnchor="middle"
+              dominantBaseline="central"
+              className="circuit-map__pos"
+            >
               {car.position}
             </text>
             {car.isPlayer && (

@@ -11,8 +11,9 @@ function watchForErrors(page: Page) {
   return problems;
 }
 
+/** Jumps to the leader's next crossing of the line (the race otherwise runs on its own). */
 async function advance(page: Page) {
-  await page.getByRole('button', { name: /Advance lap|Run final lap/ }).click();
+  await page.getByRole('button', { name: 'Next lap' }).click();
 }
 
 test('full race journey with a Safety Car, a pit stop and saved records', async ({ page }) => {
@@ -49,9 +50,8 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
   await expect(page.locator('.feed__title', { hasText: 'Safety Car deployed' }).first()).toBeVisible();
 
   // Pit under the Safety Car for hards and check the tyre change.
-  await page.locator('label.segmented__option', { hasText: 'Box this lap' }).click();
+  await page.locator('label.segmented__option', { hasText: 'End of lap' }).click();
   await page.locator('label.compound', { hasText: 'Hard' }).click();
-  await expect(page.getByRole('button', { name: /then box for Hard/ })).toBeVisible();
   await advance(page);
   await expect(page.locator('.tyres__compound')).toContainText('Hard');
   await expect(page.locator('.feed__title', { hasText: 'Box, box: Soft to Hard' })).toBeVisible();
@@ -109,6 +109,34 @@ test('the same seed from a shared link replays the same race', async ({ page }) 
   const second = await run();
   expect(first).toHaveLength(22);
   expect(second).toEqual(first);
+});
+
+test('live race: lights out, cars lap the circuit on their own and the Safety Car pauses the race', async ({ page }) => {
+  const problems = watchForErrors(page);
+  await page.goto('./?seed=2468&circuit=monza&laps=10&scenario=safety-car-early');
+  await page.getByRole('button', { name: 'New race' }).click();
+  await page.getByRole('button', { name: 'Start race' }).click();
+  await page.getByRole('radio', { name: 'Speed 8 times' }).check({ force: true });
+  await page.getByRole('button', { name: 'Lights out' }).click();
+  await expect(page.getByRole('img', { name: /red lights on/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pause' })).toBeVisible({ timeout: 8000 });
+
+  // The cars move continuously between lap boundaries.
+  const firstCar = page.locator('.circuit-map__car').first();
+  const before = await firstCar.getAttribute('transform');
+  await page.waitForTimeout(400);
+  expect(await firstCar.getAttribute('transform')).not.toBe(before);
+
+  // Laps go by without pressing anything, until the Safety Car pauses the race for a call.
+  await expect(page.locator('.transport__paused')).toContainText('Safety Car deployed', { timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Resume' })).toBeVisible();
+  await expect(page.locator('.race-header__lap')).toHaveAttribute('aria-label', 'Lap 4 of 10');
+  await page.screenshot({ path: 'test-results/live-race.png' });
+
+  // Resume and let it run to the flag.
+  await page.getByRole('button', { name: 'Resume' }).click();
+  await expect(page.getByRole('button', { name: 'See results' })).toBeVisible({ timeout: 60_000 });
+  expect(problems).toEqual([]);
 });
 
 test('layouts fit phone and desktop widths without horizontal scrolling', async ({ page }) => {

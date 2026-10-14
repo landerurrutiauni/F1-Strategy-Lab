@@ -43,16 +43,17 @@ describe('game flow', () => {
     await user.click(screen.getByRole('button', { name: 'New race' }));
     await user.click(screen.getByRole('button', { name: 'Start race' }));
 
-    await user.click(screen.getByRole('button', { name: /Advance lap/ }));
+    expect(screen.getByRole('button', { name: 'Lights out' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next lap' }));
     expect(screen.getByRole('heading', { name: /Lap 2 call/i })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', { name: 'Box this lap' }));
+    await user.click(screen.getByRole('radio', { name: 'Box at the end of lap 2' }));
     await user.click(screen.getByRole('radio', { name: /^Hard tyre/ }));
-    await user.click(screen.getByRole('button', { name: /then box for Hard/ }));
+    await user.click(screen.getByRole('button', { name: 'Next lap' }));
     expect(screen.getAllByText(/Box, box: Medium to Hard/).length).toBeGreaterThan(0);
 
-    for (let lap = 3; lap <= 10; lap++) {
-      const button = screen.queryByRole('button', { name: /Advance lap|Run final lap/ });
+    for (let lap = 3; lap <= 12; lap++) {
+      const button = screen.queryByRole('button', { name: 'Next lap' });
       if (!button) break;
       await user.click(button);
     }
@@ -83,7 +84,7 @@ describe('game flow', () => {
     const first = renderApp();
     await user.click(screen.getByRole('button', { name: 'New race' }));
     await user.click(screen.getByRole('button', { name: 'Start race' }));
-    await user.click(screen.getByRole('button', { name: /Advance lap/ }));
+    await user.click(screen.getByRole('button', { name: 'Next lap' }));
     first.unmount();
     renderApp();
     await user.click(screen.getByRole('button', { name: /Resume race/ }));

@@ -7,9 +7,11 @@ import { WeatherIcon } from '../WeatherIcon';
 interface RaceHeaderProps {
   race: RaceState;
   onLeave: () => void;
+  /** The lights have gone out (the first lap is under way). */
+  started?: boolean;
 }
 
-export function RaceHeader({ race, onLeave }: RaceHeaderProps) {
+export function RaceHeader({ race, onLeave, started = race.lap > 0 }: RaceHeaderProps) {
   const circuit = getCircuit(race.config.circuitId);
   const finished = race.phase === 'finished';
   const sc = race.safetyCar.active;
@@ -18,7 +20,7 @@ export function RaceHeader({ race, onLeave }: RaceHeaderProps) {
     ? { label: 'Chequered flag', tone: 'finish', icon: <Flag size={15} aria-hidden="true" /> }
     : sc
       ? { label: 'Safety Car', tone: 'sc', icon: <TriangleAlert size={15} aria-hidden="true" /> }
-      : race.lap === 0
+      : !started
         ? { label: 'Grid', tone: 'grid', icon: <Flag size={15} aria-hidden="true" /> }
         : { label: 'Green flag', tone: 'green', icon: <Flag size={15} aria-hidden="true" /> };
 

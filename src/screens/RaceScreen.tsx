@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Flag, Trophy } from 'lucide-react';
-import { CircuitMap, type MapCar } from '../components/CircuitMap';
+import { CircuitMap, type LiveFeed, type MapCar } from '../components/CircuitMap';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DecisionPanel } from '../components/race/DecisionPanel';
+import { CallLockNote, PlaybackBar, StartLights } from '../components/race/PlaybackControls';
 import { RaceFeed } from '../components/race/RaceFeed';
 import { RaceHeader } from '../components/race/RaceHeader';
 import { StrategyPanel } from '../components/race/StrategyPanel';
@@ -16,8 +17,9 @@ import { getDriver, getTeam } from '../game/data/teams';
 import { getPlayerCar, playerEngineer } from '../game/engine';
 import { estimateRejoin, evaluateStrategies } from '../game/projection';
 import type { PaceMode, RaceState } from '../game/types';
-import { mapFractions, towerRows } from '../game/view';
+import { towerRows } from '../game/view';
 import type { RaceController } from '../hooks/useRaceController';
+import { useRacePlayback } from '../hooks/useRacePlayback';
 import { useReducedMotion, useSettings } from '../hooks/useSettings';
 import { useSound } from '../hooks/useSound';
 
@@ -40,45 +42,91 @@ function announce(next: RaceState): string {
 }
 
 export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenProps) {
-  const { race, decision, decisionError, updateDecision, advance, finishAfterRetirement } = controller;
+  const { decision, decisionError, updateDecision, finishAfterRetirement } = controller;
+  const engine = controller.race;
   const { settings, update } = useSettings();
   const reducedMotion = useReducedMotion();
   const play = useSound();
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [liveMessage, setLiveMessage] = useState('');
+  const [lights, setLights] = useState<number | null>(null);
+
+  // Announcements and sound cues each time the leader crosses the line.
+  const onReveal = useCallback(
+    (next: RaceState) => {
+      if (next.lap === 0) return;
+      setLiveMessage(announce(next));
+      const me = getPlayerCar(next).id;
+      const lapEvents = next.events.filter((e) => e.lap === next.lap);
+      if (next.phase === 'finished') play('finish');
+      else if (lapEvents.some((e) => e.kind === 'safety-car' || (e.kind === 'weather' && e.major))) play('alert');
+      else if (lapEvents.some((e) => e.kind === 'pit' && e.carId === me)) play('pit');
+      else play('lap');
+    },
+    [play],
+  );
+  const playback = useRacePlayback(controller, { speed: settings.raceSpeed, pauseOnEvents: settings.pauseOnEvents, onReveal });
+  // The panels show the race as of the leader's last crossing of the line; the engine is a lap ahead.
+  const race = playback.shown;
 
   const circuit = getCircuit(race.config.circuitId);
   const player = getPlayerCar(race);
+  const enginePlayer = getPlayerCar(engine);
   const engineer = playerEngineer(race);
 
-  // Projections are pure functions of the race state, recomputed once per lap.
-  const outlook = useMemo(() => evaluateStrategies(race, player.id), [race, player.id]);
-  const rejoin = useMemo(() => estimateRejoin(race, player.id), [race, player.id]);
+  // Projections plan the pending call, so they start from the engine state.
+  const outlook = useMemo(() => evaluateStrategies(engine, enginePlayer.id), [engine, enginePlayer.id]);
+  const rejoin = useMemo(() => estimateRejoin(engine, enginePlayer.id), [engine, enginePlayer.id]);
   const rows = useMemo(() => towerRows(race), [race]);
-  const mapCars = useMemo<MapCar[]>(() => {
-    const fractions = mapFractions(race);
-    return race.cars
-      .filter((c) => c.status === 'running')
-      .map((c) => ({
+  const mapCars = useMemo<MapCar[]>(
+    () =>
+      race.cars.map((c) => ({
         id: c.id,
         code: getDriver(c.driverId).code,
         color: getTeam(c.teamId).color,
         position: c.position,
         isPlayer: c.isPlayer,
-        fraction: fractions.get(c.id) ?? 0,
-      }));
-  }, [race]);
+        fraction: 0,
+      })),
+    [race],
+  );
 
-  const handleAdvance = useCallback(() => {
-    const next = advance();
-    if (!next) return;
-    setLiveMessage(announce(next));
-    const lapEvents = next.events.filter((e) => e.lap === next.lap);
-    if (next.phase === 'finished') play('finish');
-    else if (lapEvents.some((e) => e.kind === 'safety-car' || (e.kind === 'weather' && e.major))) play('alert');
-    else if (lapEvents.some((e) => e.kind === 'pit' && e.carId === player.id)) play('pit');
-    else play('lap');
-  }, [advance, play, player.id]);
+  // Safety Car laps: those already run, plus the next one when the Safety Car is out.
+  const scInfo = useRef({ lapStatus: engine.lapStatus, nextLap: engine.lap + 1, active: engine.safetyCar.active });
+  useLayoutEffect(() => {
+    scInfo.current = { lapStatus: engine.lapStatus, nextLap: engine.lap + 1, active: engine.safetyCar.active };
+  });
+  const { subscribe, timelines } = playback;
+  const live = useMemo<LiveFeed>(
+    () => ({
+      subscribe,
+      timelines,
+      safetyCarLap: (lap) => scInfo.current.lapStatus[lap] === 'sc' || (lap === scInfo.current.nextLap && scInfo.current.active),
+    }),
+    [subscribe, timelines],
+  );
+
+  // Start lights: five reds, then lights out and the race runs.
+  const { play: startPlayback, started } = playback;
+  const lightsOut = useCallback(() => {
+    if (lights !== null || started) return;
+    if (reducedMotion) startPlayback();
+    else setLights(0);
+  }, [lights, started, reducedMotion, startPlayback]);
+  useEffect(() => {
+    if (lights === null) return;
+    const id = window.setTimeout(
+      () => {
+        if (lights < 5) setLights(lights + 1);
+        else {
+          setLights(null);
+          startPlayback();
+        }
+      },
+      lights < 5 ? 550 : 350 + Math.random() * 650,
+    );
+    return () => window.clearTimeout(id);
+  }, [lights, startPlayback]);
 
   const handleFinish = useCallback(() => {
     const next = finishAfterRetirement();
@@ -93,20 +141,31 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
   // Keyboard shortcuts; handler kept in a ref so the listener is attached once.
   const keyHandler = useRef<(e: KeyboardEvent) => void>(() => {});
   const handleKey = (e: KeyboardEvent) => {
-    if (confirmLeave || race.phase !== 'running' || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (confirmLeave || e.metaKey || e.ctrlKey || e.altKey) return;
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text')) return;
     if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
     const key = e.key.toLowerCase();
-    if (PACE_KEYS[key] && !race.safetyCar.active) {
-      updateDecision({ pace: PACE_KEYS[key] });
-    } else if (key === 'b' && race.lap + 1 < race.totalLaps) {
-      updateDecision({ box: !decision.box });
-    } else if (key === 'e' && !race.safetyCar.active && player.battery >= BOOST_COST) {
-      updateDecision({ boost: !decision.boost });
-    } else if (key === 'n') {
+    if (key === ' ' || e.code === 'Space') {
+      // Space on a focused control activates that control instead.
+      if (target && target.closest('button, a, summary, label, input')) return;
       e.preventDefault();
-      handleAdvance();
+      if (!playback.started) lightsOut();
+      else playback.toggle();
+      return;
+    }
+    if (key === 'n' && !playback.complete) {
+      e.preventDefault();
+      playback.skipLap();
+      return;
+    }
+    if (engine.phase !== 'running') return;
+    if (PACE_KEYS[key] && !engine.safetyCar.active) {
+      updateDecision({ pace: PACE_KEYS[key] });
+    } else if (key === 'b' && engine.lap + 1 < engine.totalLaps) {
+      updateDecision({ box: !decision.box });
+    } else if (key === 'e' && !engine.safetyCar.active && enginePlayer.battery >= BOOST_COST) {
+      updateDecision({ boost: !decision.boost });
     }
   };
   useLayoutEffect(() => {
@@ -118,11 +177,13 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
     return () => window.removeEventListener('keydown', listener);
   }, []);
 
+  const controls = engine.phase === 'running' ? <CallLockNote playback={playback} nextLap={engine.lap + 1} /> : null;
+
   const finishedEntry = race.classification?.find((e) => e.carId === player.id);
 
   return (
     <div className={`race${race.safetyCar.active ? ' is-sc' : ''}`}>
-      <RaceHeader race={race} onLeave={requestLeave} />
+      <RaceHeader race={race} onLeave={requestLeave} started={playback.started} />
       <p className="visually-hidden" aria-live="polite" role="status">
         {liveMessage}
       </p>
@@ -133,14 +194,14 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
             <CircuitMap
               circuit={circuit}
               cars={mapCars}
-              lapKey={race.lap}
-              safetyCar={race.safetyCar.active}
+              live={live}
               reducedMotion={reducedMotion}
               title={`${circuit.name} track map with live car positions`}
             />
+            {lights !== null && <StartLights lit={lights} />}
             {race.weather.rain >= 0.05 && <div className="map-frame__rain" aria-hidden="true" />}
             <p className="map-frame__caption muted">
-              Positions as the leader crosses the line. Your car: {getDriver(player.driverId).code}, ringed.
+              Live: every car runs its own lap times. Your car: {getDriver(player.driverId).code}, ringed. Panels update as the leader crosses the line.
             </p>
             {race.safetyCar.active && (
               <p className="map-frame__banner" role="note">
@@ -148,6 +209,13 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
               </p>
             )}
           </div>
+          <PlaybackBar
+            playback={playback}
+            speed={settings.raceSpeed}
+            onSpeed={(raceSpeed) => update({ raceSpeed })}
+            onLightsOut={lightsOut}
+            lightsRunning={lights !== null}
+          />
         </section>
 
         <aside className="race__tower panel" aria-label="Timing tower">
@@ -178,18 +246,29 @@ export function RaceScreen({ controller, onLeave, onShowResults }: RaceScreenPro
                 <Trophy size={18} aria-hidden="true" />
                 <span className="btn__label">See results</span>
               </button>
+              {!playback.complete && <p className="muted">The rest of the field is still crossing the line.</p>}
+            </section>
+          ) : engine.phase === 'finished' ? (
+            <section className="deck" aria-labelledby="deck-title">
+              <header className="deck__head">
+                <h2 id="deck-title" className="deck__title">
+                  Final lap
+                </h2>
+                <p className="deck__explain">All calls are made. The chequered flag waits for the leader at the end of this lap.</p>
+              </header>
+              <div className="deck__actions">{controls}</div>
             </section>
           ) : (
             <DecisionPanel
-              race={race}
+              race={engine}
               decision={decision}
               decisionError={decisionError}
               outlook={outlook}
               rejoin={rejoin}
               showProjections={settings.showProjections}
               onChange={updateDecision}
-              onAdvance={handleAdvance}
               onFinishAfterRetirement={handleFinish}
+              controls={controls}
             />
           )}
         </div>

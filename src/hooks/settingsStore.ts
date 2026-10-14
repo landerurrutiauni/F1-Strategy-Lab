@@ -10,7 +10,14 @@ export interface Settings {
   gapMode: GapMode;
   showProjections: boolean;
   confirmLeave: boolean;
+  /** Playback speed of the live race (1 = about 12 s per lap). */
+  raceSpeed: RaceSpeed;
+  /** Pause the live race for Safety Cars, weather changes and problems with your car. */
+  pauseOnEvents: boolean;
 }
+
+export type RaceSpeed = 1 | 2 | 4 | 8;
+export const RACE_SPEEDS: RaceSpeed[] = [1, 2, 4, 8];
 
 export const DEFAULT_SETTINGS: Settings = {
   motion: 'system',
@@ -18,6 +25,8 @@ export const DEFAULT_SETTINGS: Settings = {
   gapMode: 'interval',
   showProjections: true,
   confirmLeave: true,
+  raceSpeed: 2,
+  pauseOnEvents: true,
 };
 
 export const SETTINGS_KEY = 'f1-strategy-lab:settings:v1';
@@ -33,6 +42,8 @@ export function loadSettings(storage: StorageLike | null = getBrowserStorage()):
       gapMode: parsed.gapMode === 'leader' || parsed.gapMode === 'interval' ? parsed.gapMode : DEFAULT_SETTINGS.gapMode,
       showProjections: typeof parsed.showProjections === 'boolean' ? parsed.showProjections : DEFAULT_SETTINGS.showProjections,
       confirmLeave: typeof parsed.confirmLeave === 'boolean' ? parsed.confirmLeave : DEFAULT_SETTINGS.confirmLeave,
+      raceSpeed: RACE_SPEEDS.includes(parsed.raceSpeed as RaceSpeed) ? (parsed.raceSpeed as RaceSpeed) : DEFAULT_SETTINGS.raceSpeed,
+      pauseOnEvents: typeof parsed.pauseOnEvents === 'boolean' ? parsed.pauseOnEvents : DEFAULT_SETTINGS.pauseOnEvents,
     };
   } catch {
     return DEFAULT_SETTINGS;

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { CircleAlert, Wrench, Zap } from 'lucide-react';
 import { BOOST_COST, PACE_MODES } from '../../game/constants';
 import { COMPOUNDS, COMPOUND_ORDER } from '../../game/data/tyres';
@@ -17,8 +18,9 @@ interface DecisionPanelProps {
   rejoin: RejoinEstimate | null;
   showProjections: boolean;
   onChange: (patch: Partial<PlayerDecision>) => void;
-  onAdvance: () => void;
   onFinishAfterRetirement: () => void;
+  /** Play, pause and speed controls for the live race. */
+  controls: ReactNode;
 }
 
 const PACE_ORDER: PaceMode[] = ['conserve', 'standard', 'push'];
@@ -31,8 +33,8 @@ export function DecisionPanel({
   rejoin,
   showProjections,
   onChange,
-  onAdvance,
   onFinishAfterRetirement,
+  controls,
 }: DecisionPanelProps) {
   const player = getPlayerCar(race);
   const upcoming = race.lap + 1;
@@ -45,10 +47,11 @@ export function DecisionPanel({
         <h2 id="deck-title" className="deck__title">
           {getDriver(player.driverId).name} is out of the race
         </h2>
-        <p className="deck__explain">{player.retiredReason}. Simulate the remaining laps to see the final classification.</p>
-        <button type="button" className="btn btn--primary btn--xl" onClick={onFinishAfterRetirement}>
-          <span className="btn__label">Simulate to the flag</span>
+        <p className="deck__explain">{player.retiredReason}. Watch the rest of the race or skip straight to the final classification.</p>
+        <button type="button" className="btn btn--secondary" onClick={onFinishAfterRetirement}>
+          Skip to the flag
         </button>
+        <div className="deck__actions">{controls}</div>
       </section>
     );
   }
@@ -68,7 +71,7 @@ export function DecisionPanel({
         <p className="deck__explain">
           {finalLap
             ? 'Set the pace for the last lap. No pit stops on the final lap.'
-            : `Choices apply to lap ${upcoming}. Boxing brings ${getDriver(player.driverId).code} in at the end of lap ${upcoming}, on new tyres from lap ${upcoming + 1}.`}
+            : `Your call for lap ${upcoming}: pace and boost for that lap, and boxing brings ${getDriver(player.driverId).code} in at the end of it, on new tyres from lap ${upcoming + 1}.`}
         </p>
       </header>
 
@@ -138,12 +141,12 @@ export function DecisionPanel({
                 value: 'box',
                 label: (
                   <>
-                    <Wrench size={14} aria-hidden="true" /> Box this lap
+                    <Wrench size={14} aria-hidden="true" /> Box
                   </>
                 ),
-                ariaLabel: 'Box this lap',
+                ariaLabel: `Box at the end of lap ${upcoming}`,
                 disabled: finalLap,
-                hint: rejoin ? <>Pit loss ≈ {rejoin.pitLoss.toFixed(1)} s</> : <>Not on the final lap</>,
+                hint: finalLap ? <>Not on the final lap</> : <>End of lap {upcoming}{rejoin ? `, ≈ ${rejoin.pitLoss.toFixed(1)} s` : ''}</>,
               },
             ]}
           />
@@ -209,19 +212,7 @@ export function DecisionPanel({
         </p>
       )}
 
-      <div className="deck__actions">
-        <button type="button" className="btn btn--primary btn--xl advance" onClick={onAdvance} disabled={!!decisionError} aria-keyshortcuts="N">
-          <span className="btn__stack">
-            <span className="btn__label">{finalLap ? 'Run final lap' : 'Advance lap'}</span>
-            <span className="btn__sub">
-              {decision.box ? `Lap ${upcoming}, then box for ${COMPOUNDS[decision.compound].name}` : `Lap ${upcoming} of ${race.totalLaps}`}
-            </span>
-          </span>
-        </button>
-        <p className="deck__keys muted">
-          Keys: <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pace, <kbd>B</kbd> box, <kbd>E</kbd> boost, <kbd>N</kbd> advance
-        </p>
-      </div>
+      <div className="deck__actions">{controls}</div>
     </section>
   );
 }

@@ -8,7 +8,8 @@ import { CIRCUITS } from '../game/data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER } from '../game/data/tyres';
 import { formatDelta, formatRaceTime } from '../game/format';
 import { clearActiveRace, clearRecords, computeStats, loadRecords } from '../game/persistence';
-import { DEFAULT_SETTINGS, saveSettings, type MotionSetting } from '../hooks/settingsStore';
+import { DEFAULT_SETTINGS, RACE_SPEEDS, saveSettings, type MotionSetting, type RaceSpeed } from '../hooks/settingsStore';
+import { REAL_SECONDS_PER_LAP } from '../hooks/useRacePlayback';
 import { useSettings } from '../hooks/useSettings';
 import { useSound } from '../hooks/useSound';
 
@@ -40,18 +41,21 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
           <h2>Your job</h2>
           <p>
             You are the race strategist for one driver on the 2026 grid. You do not steer the car: you choose the pace, the tyres and when to stop.
-            The race runs one lap at a time and waits for you, so take as long as you like over each call. A race of 15 laps takes about five to ten minutes.
+            After <strong>Lights out</strong> the race runs live: all 22 cars lap the circuit at their own pace, pull into the pit lane for their stops and
+            follow the Safety Car when it comes out. A 15-lap race takes about two to three minutes at 2× speed.
           </p>
         </section>
         <section>
-          <h2>Each lap</h2>
+          <h2>Making calls</h2>
           <ol>
-            <li>Read the situation: timing tower, tyre wear, weather radar and the strategy outlook.</li>
-            <li>Choose a pace, decide whether to use the overtake boost, and decide whether to box at the end of the lap.</li>
-            <li>Press <strong>Advance lap</strong>. The whole field runs the lap and the race feed explains what happened.</li>
+            <li>Read the situation: the map, timing tower, tyre wear, weather radar and the strategy outlook. The panels update each time the leader crosses the line.</li>
+            <li>Set your call for the next lap: pace, overtake boost, and whether to box at the end of it (and for which tyres).</li>
+            <li>Your call locks in when the leader starts that lap. The countdown under the decision panel tells you how long you have.</li>
           </ol>
           <p>
-            A pit call is made <em>before</em> the lap: the car runs the lap, enters the pits at the end of it and starts the next lap on new tyres.
+            Pause with <kbd>Space</kbd> or the Pause button whenever you need time to think, change the speed from 1× to 8×, or use <strong>Next lap</strong> to jump
+            to the next time the leader crosses the line. With <em>Pause for key moments</em> on (Settings), the race stops by itself for a Safety Car, a change in the
+            weather or a problem with your car.
           </p>
         </section>
         <section>
@@ -144,7 +148,7 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
         <section>
           <h2>Keyboard</h2>
           <p>
-            On the race screen: <kbd>1</kbd> conserve, <kbd>2</kbd> standard, <kbd>3</kbd> push, <kbd>B</kbd> toggle box, <kbd>E</kbd> toggle boost and <kbd>N</kbd> advance the lap. Every control is also reachable with <kbd>Tab</kbd>.
+            On the race screen: <kbd>Space</kbd> lights out, pause and resume, <kbd>N</kbd> next lap, <kbd>1</kbd> conserve, <kbd>2</kbd> standard, <kbd>3</kbd> push, <kbd>B</kbd> toggle box and <kbd>E</kbd> toggle boost. Every control is also reachable with <kbd>Tab</kbd>.
           </p>
         </section>
       </main>
@@ -320,7 +324,7 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
               { value: 'full', label: 'Full' },
             ]}
           />
-          <p className="field__help">Reduced motion turns off car, timing-tower and menu animations. The race itself is unaffected.</p>
+          <p className="field__help">Reduced motion turns off the timing-tower and menu animations, and cars on the live map move in one-second steps instead of gliding. The race itself is unaffected.</p>
         </section>
         <section className="panel">
           <label className={`switch${settings.sound ? ' is-on' : ''}`}>
@@ -336,6 +340,24 @@ export function SettingsScreen({ onBack }: { onBack: () => void }) {
           <button type="button" className="btn btn--ghost btn--small" onClick={() => play('pit', true)}>
             <Volume2 size={15} aria-hidden="true" /> Test sound
           </button>
+        </section>
+        <section className="panel">
+          <label className={`switch${settings.pauseOnEvents ? ' is-on' : ''}`}>
+            <input type="checkbox" role="switch" checked={settings.pauseOnEvents} onChange={(e) => update({ pauseOnEvents: e.target.checked })} />
+            <span className="switch__track" aria-hidden="true">
+              <span className="switch__thumb" />
+            </span>
+            <span className="switch__text">
+              <span className="switch__label">Pause for key moments</span>
+              <span className="switch__hint">The live race stops for Safety Cars, weather changes and problems with your car, so you can make the call.</span>
+            </span>
+          </label>
+          <Segmented<RaceSpeed>
+            legend="Race speed"
+            value={settings.raceSpeed}
+            onChange={(raceSpeed) => update({ raceSpeed })}
+            options={RACE_SPEEDS.map((s) => ({ value: s, label: `${s}×`, hint: `about ${Math.round(REAL_SECONDS_PER_LAP / s)} s a lap` }))}
+          />
         </section>
         <section className="panel">
           <label className={`switch${settings.showProjections ? ' is-on' : ''}`}>
