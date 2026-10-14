@@ -1,0 +1,84 @@
+/*
+ * Design tokens: F1 Strategy Lab
+ *
+ * Colour: a carbon-grey pit wall with one signal colour (lime) for anything you can act on.
+ * Red / amber / blue are reserved for race status (danger, caution, rain) and always
+ * paired with an icon or text so meaning never depends on colour alone.
+ */
+:root {
+  /* Surfaces */
+  --carbon-950: #0d1012;
+  --carbon-900: #121619;
+  --carbon-850: #161b1e;
+  --carbon-800: #1a2024;
+  --carbon-700: #232a2f;
+  --carbon-600: #2e373d;
+  --carbon-500: #3d474e;
+
+  /* Text */
+  --paper: #edefe6;
+  --paper-dim: #c4cac7;
+  --graphite: #98a2a8;
+  --graphite-dim: #7a858c;
+
+  /* Signal */
+  --lime: #c8f03c;
+  --lime-strong: #d8ff52;
+  --lime-ink: #11160a;
+  --lime-wash: rgb(200 240 60 / 0.12);
+
+  /* Status */
+  --red: #ff5a47;
+  --red-wash: rgb(255 90 71 / 0.14);
+  --amber: #ffb23e;
+  --amber-wash: rgb(255 178 62 / 0.14);
+  --blue: #5ab0ff;
+  --blue-wash: rgb(90 176 255 / 0.14);
+  --green: #4fd67a;
+
+  /* Tyres */
+  --tyre-soft: #ff4f4f;
+  --tyre-medium: #ffd43b;
+  --tyre-hard: #e8ecef;
+  --tyre-inter: #47d46e;
+  --tyre-wet: #3d8bff;
+
+  /* Type */
+  --font-display: 'Saira Variable', 'Saira', 'Arial Narrow', 'Roboto Condensed', 'Helvetica Neue', sans-serif;
+  --font-ui: 'Archivo Variable', 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.875rem;
+  --text-2xl: 2.75rem;
+  --text-3xl: 4.25rem;
+
+  /* Space (4px grid) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --s12: 48px;
+
+  --radius: 4px;
+  --radius-sm: 2px;
+  --line: 1px solid var(--carbon-600);
+  --line-soft: 1px solid var(--carbon-700);
+
+  /* Livery cut used on primary actions */
+  --cut: 14px;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-fast: 140ms;
+  --dur: 240ms;
+  --dur-slow: 520ms;
+
+  color-scheme: dark;
+}

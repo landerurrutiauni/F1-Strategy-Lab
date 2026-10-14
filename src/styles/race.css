@@ -1,0 +1,770 @@
+/* ---------- Live race layout ---------- */
+.race {
+  min-height: 100vh;
+  padding: var(--s3);
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.race__grid {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 360px;
+  grid-template-areas:
+    'tower map side'
+    'tower deck side'
+    'feed telemetry side';
+  grid-template-rows: auto auto 1fr;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+
+.race__map {
+  grid-area: map;
+}
+
+.race__tower {
+  grid-area: tower;
+  align-self: start;
+  padding: var(--s3) var(--s2);
+}
+
+.race__deck {
+  grid-area: deck;
+  min-width: 0;
+}
+
+.race__side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.race__telemetry {
+  grid-area: telemetry;
+  min-width: 0;
+}
+
+.race__feed {
+  grid-area: feed;
+  min-width: 0;
+}
+
+/* ---------- Header ---------- */
+.race-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s2) var(--s4);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-radius: var(--radius);
+}
+
+.race-header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.brand-mark {
+  flex: none;
+  width: 28px;
+  height: 20px;
+  background: var(--lime);
+  clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%);
+}
+
+.race-header__brand > div {
+  min-width: 0;
+}
+
+.race-header__event {
+  font-family: var(--font-display);
+  font-stretch: 75%;
+  font-weight: 750;
+  font-size: var(--text-lg);
+  line-height: 1.05;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.race-header__venue {
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.race-header__lap {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.race-header__lap-label {
+  font-size: var(--text-xs);
+  color: var(--graphite);
+}
+
+.race-header__lap-value {
+  font-size: 2.6rem;
+  font-style: italic;
+}
+
+.race-header__lap-total {
+  color: var(--graphite);
+  font-size: 1.5rem;
+}
+
+.status-chip,
+.weather-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 6px var(--s3);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.status-chip--green {
+  background: rgb(79 214 122 / 0.12);
+  color: var(--green);
+}
+
+.status-chip--grid {
+  background: var(--carbon-700);
+  color: var(--paper-dim);
+}
+
+.status-chip--sc {
+  background: var(--amber);
+  color: var(--carbon-950);
+  animation: sc-pulse 1.6s ease-in-out infinite;
+}
+
+.status-chip--finish {
+  background: var(--paper);
+  color: var(--carbon-950);
+}
+
+.status-chip__extra {
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+@keyframes sc-pulse {
+  50% {
+    box-shadow: 0 0 0 4px rgb(255 178 62 / 0.25);
+  }
+}
+
+.weather-chip {
+  background: var(--carbon-800);
+  color: var(--paper);
+  font-weight: 500;
+}
+
+.weather-chip.is-rain {
+  background: var(--blue-wash);
+}
+
+.weather-chip.is-rain svg {
+  color: var(--blue);
+}
+
+/* ---------- Map ---------- */
+.panel--map {
+  padding: 0;
+  overflow: hidden;
+}
+
+.map-frame {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  max-height: 46vh;
+  min-height: 260px;
+  width: 100%;
+  padding: var(--s4) var(--s4) var(--s8);
+  background:
+    radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.05) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--carbon-950);
+}
+
+.race.is-sc .map-frame {
+  box-shadow: inset 0 0 0 2px var(--amber);
+}
+
+.map-frame__caption {
+  position: absolute;
+  left: var(--s4);
+  bottom: var(--s2);
+  font-size: var(--text-xs);
+}
+
+.map-frame__banner {
+  position: absolute;
+  top: var(--s3);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--amber);
+  color: var(--carbon-950);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.map-frame__rain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: calc(var(--rain, 0) * 0.55);
+  background-image: repeating-linear-gradient(
+    105deg,
+    transparent 0 14px,
+    rgb(90 176 255 / 0.35) 14px 15px
+  );
+  background-size: 200px 200px;
+  animation: rain-drift 0.9s linear infinite;
+}
+
+@keyframes rain-drift {
+  to {
+    background-position: -40px 200px;
+  }
+}
+
+/* ---------- Decision deck ---------- */
+.deck {
+  padding: var(--s4) var(--s5);
+  background: var(--carbon-850);
+  border: 1px solid var(--carbon-600);
+  border-top: 2px solid var(--lime);
+  border-radius: var(--radius);
+}
+
+.deck__head {
+  margin-bottom: var(--s4);
+}
+
+.deck__title {
+  font-family: var(--font-display);
+  font-stretch: 75%;
+  font-weight: 750;
+  font-size: var(--text-xl);
+  text-transform: uppercase;
+  font-style: italic;
+  line-height: 1;
+}
+
+.deck__explain {
+  margin-top: var(--s2);
+  color: var(--paper-dim);
+  font-size: var(--text-sm);
+  max-width: 70ch;
+}
+
+.deck__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--s5);
+}
+
+.deck__block {
+  min-width: 0;
+}
+
+.deck__note {
+  margin-top: var(--s2);
+  font-size: var(--text-xs);
+  color: var(--amber);
+}
+
+.deck__estimates {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--s3);
+  font-size: var(--text-sm);
+}
+
+.deck__error {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  color: var(--red);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.deck__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--carbon-700);
+}
+
+.advance {
+  min-width: 260px;
+}
+
+.deck__keys {
+  font-size: var(--text-xs);
+}
+
+.deck--finished,
+.deck--retired {
+  display: grid;
+  justify-items: start;
+  gap: var(--s3);
+}
+
+.deck--finished .deck__title {
+  font-size: var(--text-3xl);
+}
+
+.deck__flag {
+  color: var(--lime);
+}
+
+/* ---------- Tyres panel ---------- */
+.tyres__main {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: var(--s4);
+  align-items: center;
+}
+
+.tyre-gauge {
+  width: 112px;
+  height: 112px;
+}
+
+.tyre-gauge__rubber {
+  fill: var(--carbon-950);
+  stroke: var(--carbon-700);
+  stroke-width: 2;
+}
+
+.tyre-gauge__track {
+  fill: none;
+  stroke: var(--carbon-700);
+  stroke-width: 8;
+}
+
+.tyre-gauge__life {
+  fill: none;
+  stroke: var(--lime);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--dur-slow) var(--ease-out), stroke var(--dur);
+}
+
+.tone-warn .tyre-gauge__life {
+  stroke: var(--amber);
+}
+
+.tone-danger .tyre-gauge__life {
+  stroke: var(--red);
+}
+
+.tyre-gauge__value {
+  fill: var(--paper);
+  font-family: var(--font-display);
+  font-stretch: 75%;
+  font-weight: 750;
+  font-size: 26px;
+}
+
+.tyre-gauge__caption {
+  fill: var(--graphite);
+  font-size: 11px;
+}
+
+.tyres__compound {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+  font-weight: 650;
+}
+
+.tyres__compound .tag {
+  margin-left: auto;
+}
+
+.sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--carbon-700);
+}
+
+.sets__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--paper-dim);
+}
+
+.sets__item.is-empty {
+  opacity: 0.4;
+}
+
+/* ---------- Radar ---------- */
+.radar__now {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.radar__icon {
+  display: inline-flex;
+  color: var(--amber);
+}
+
+.radar__icon.is-rain {
+  color: var(--blue);
+}
+
+.radar__label {
+  font-weight: 650;
+}
+
+.radar__now .muted {
+  font-size: var(--text-xs);
+}
+
+.radar__temp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: var(--text-xs);
+}
+
+.radar__temp .num {
+  font-size: var(--text-md);
+  font-weight: 650;
+}
+
+.radar__best {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--s3) 0;
+  font-size: var(--text-sm);
+}
+
+.radar__bars {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.radar__bar {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.radar__col {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: var(--carbon-900);
+  overflow: hidden;
+}
+
+.radar__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--blue);
+  transition: height var(--dur-slow) var(--ease-out);
+}
+
+.radar__lap {
+  font-size: var(--text-xs);
+  font-weight: 650;
+}
+
+.radar__conf {
+  font-size: 0.6875rem;
+  color: var(--graphite);
+}
+
+.radar__note {
+  margin-top: var(--s2);
+  font-size: var(--text-xs);
+}
+
+/* ---------- Feed ---------- */
+.feed__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.feed__item {
+  display: grid;
+  grid-template-columns: 18px 36px 1fr;
+  gap: var(--s2);
+  padding: var(--s2);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid transparent;
+}
+
+.feed__item.is-new {
+  background: var(--carbon-800);
+  animation: feed-in var(--dur-slow) var(--ease-out);
+}
+
+@keyframes feed-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+
+.feed__icon {
+  padding-top: 2px;
+  color: var(--graphite);
+}
+
+.sev-good .feed__icon {
+  color: var(--green);
+}
+
+.sev-warning .feed__icon {
+  color: var(--amber);
+}
+
+.sev-danger .feed__icon {
+  color: var(--red);
+}
+
+.sev-warning {
+  border-left-color: var(--amber);
+}
+
+.sev-danger {
+  border-left-color: var(--red);
+}
+
+.feed__lap {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--graphite);
+  padding-top: 2px;
+}
+
+.feed__title {
+  font-weight: 650;
+  font-size: var(--text-sm);
+}
+
+.feed__detail {
+  font-size: var(--text-sm);
+  color: var(--paper-dim);
+}
+
+.feed__radio {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin-top: 4px;
+  padding: 4px var(--s2);
+  border-radius: var(--radius-sm);
+  background: var(--carbon-900);
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--paper);
+}
+
+.feed__radio svg {
+  flex: none;
+  align-self: center;
+  color: var(--lime);
+}
+
+.feed__speaker {
+  font-style: normal;
+  font-weight: 650;
+  color: var(--lime);
+  white-space: nowrap;
+}
+
+/* ---------- Telemetry ---------- */
+.telemetry__charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s4);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1280px) {
+  .race__grid {
+    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-areas:
+      'map map'
+      'tower deck'
+      'tower side'
+      'feed telemetry';
+  }
+
+  .race__side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .race__side > .radar {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .race-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--s2) var(--s3);
+  }
+
+  .race-header__brand {
+    grid-column: 1;
+  }
+
+  .race-header__lap {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .status-chip {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .weather-chip {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+
+  .race-header__leave {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .race__grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'map'
+      'deck'
+      'side'
+      'tower'
+      'telemetry'
+      'feed';
+  }
+
+  .race__side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .deck__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s4);
+  }
+
+  .map-frame {
+    min-height: 0;
+    max-height: none;
+  }
+
+  /* Keep the main action reachable while scrolling on small screens. */
+  .deck__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: var(--s4) calc(var(--s4) * -1) calc(var(--s4) * -1);
+    padding: var(--s3) var(--s4);
+    background: var(--carbon-850);
+    border-top: 1px solid var(--carbon-600);
+  }
+
+  .advance {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .deck__keys {
+    display: none;
+  }
+
+  .telemetry__charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .race {
+    padding: var(--s2);
+  }
+
+  .deck {
+    padding: var(--s4);
+  }
+
+  .tyres__main {
+    grid-template-columns: 88px 1fr;
+  }
+
+  .tyre-gauge {
+    width: 88px;
+    height: 88px;
+  }
+
+  .race-header__lap-value {
+    font-size: 2rem;
+  }
+
+  .race-header__event {
+    font-size: var(--text-md);
+  }
+
+  .brand-mark {
+    display: none;
+  }
+
+  .map-frame__caption {
+    display: none;
+  }
+
+  .map-frame {
+    padding: var(--s2);
+  }
+}

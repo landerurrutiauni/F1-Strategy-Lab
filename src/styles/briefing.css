@@ -1,0 +1,230 @@
+/* ---------- Race briefing ---------- */
+.briefing__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s8);
+  align-items: start;
+}
+
+.briefing__form {
+  display: grid;
+  gap: var(--s5);
+}
+
+.circuit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s2);
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 2px 4px 2px 2px;
+  overscroll-behavior: contain;
+}
+
+.circuit-card__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s1);
+  font-size: 0.6875rem;
+  color: var(--graphite);
+}
+
+.circuit-card.is-checked .circuit-card__meta {
+  color: var(--lime);
+}
+
+.circuit-card {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: var(--s2) var(--s3) var(--s3);
+  border: 1px solid var(--carbon-600);
+  border-radius: var(--radius);
+  background: var(--carbon-850);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+
+.circuit-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.circuit-card:hover {
+  border-color: var(--carbon-500);
+}
+
+.circuit-card.is-checked {
+  border-color: var(--lime);
+  background: var(--lime-wash);
+}
+
+.circuit-card.is-checked .circuit-map__edge {
+  stroke: var(--lime);
+}
+
+.circuit-card:has(input:focus-visible) {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+.circuit-card .circuit-map {
+  height: 64px;
+  margin-bottom: var(--s1);
+}
+
+.circuit-card__name {
+  font-weight: 650;
+  font-size: var(--text-sm);
+}
+
+.circuit-card__region {
+  font-size: var(--text-xs);
+}
+
+.compounds__grid--start .compound {
+  min-height: 84px;
+}
+
+.advanced {
+  border: var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--carbon-850);
+}
+
+.advanced summary {
+  padding: var(--s3) var(--s4);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--paper-dim);
+}
+
+.advanced__body {
+  display: grid;
+  gap: var(--s4);
+  padding: 0 var(--s4) var(--s4);
+}
+
+.seed-row {
+  display: flex;
+  gap: var(--s2);
+}
+
+.seed-row .input {
+  max-width: 200px;
+}
+
+.briefing__start {
+  justify-self: start;
+  min-width: 280px;
+}
+
+.briefing__intel {
+  position: sticky;
+  top: var(--s4);
+  padding: var(--s5);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-radius: var(--radius);
+}
+
+.intel__map {
+  height: clamp(200px, 32vh, 320px);
+  margin: calc(var(--s5) * -1) calc(var(--s5) * -1) var(--s4);
+  padding: var(--s4);
+  background: var(--carbon-950);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.intel__title {
+  font-size: var(--text-2xl);
+  font-style: italic;
+  text-transform: uppercase;
+}
+
+.intel__venue {
+  margin-bottom: var(--s3);
+  font-size: var(--text-sm);
+}
+
+.intel__summary {
+  margin-bottom: var(--s4);
+  color: var(--paper-dim);
+  max-width: 65ch;
+}
+
+.intel__sub {
+  margin: var(--s5) 0 var(--s2);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--paper-dim);
+}
+
+.traits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s1) var(--s4);
+  margin: var(--s4) 0 0;
+  padding-left: var(--s4);
+  font-size: var(--text-sm);
+}
+
+.traits li::marker {
+  color: var(--lime);
+}
+
+.briefing__note {
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--lime);
+  background: var(--carbon-900);
+  font-size: var(--text-sm);
+  color: var(--paper-dim);
+}
+
+.briefing__note svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--lime);
+}
+
+@media (max-width: 1080px) {
+  .briefing__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .briefing__intel {
+    position: static;
+  }
+
+  /* The intel panel follows the form on narrow screens, so keep Start in reach. */
+  .briefing__start {
+    position: sticky;
+    bottom: var(--s3);
+    z-index: 5;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  }
+}
+
+@media (max-width: 560px) {
+  .circuit-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 420px;
+  }
+
+  .traits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .briefing__start {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .seed-row {
+    flex-wrap: wrap;
+  }
+}
