@@ -8,7 +8,7 @@ import { WeatherIcon } from '../../components/WeatherIcon';
 import { Meter, ResultTable, Timesheet } from '../../components/season/SeasonTables';
 import { getCircuit } from '../../game/data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER } from '../../game/data/tyres';
-import { getDriver, getTeam } from '../../game/data/teams';
+import { DRIVERS, getDriver, getTeam } from '../../game/data/teams';
 import { createRace, getManagedCars } from '../../game/engine';
 import { formatDelta, formatLapTime } from '../../game/format';
 import { SETUP_INFO, SETUP_PARAMS, feedbackText, type SetupParam } from '../../game/manager/setup';
@@ -31,7 +31,7 @@ import {
   setupLocked,
   simulateWithStrategist,
 } from '../../game/season/season';
-import { PRACTICE_PROGRAMMES, QUALI_CUTS, QUALI_PLANS, allowedCompounds, preparationEffects, suggestedQualiChoice } from '../../game/season/sessions';
+import { PRACTICE_PROGRAMMES, QUALI_PLANS, qualiCuts, allowedCompounds, preparationEffects, suggestedQualiChoice } from '../../game/season/sessions';
 import type { PracticeProgramme, QualiChoice, QualiPlan, QualiSessionId, QualifyingState, SeasonState, SessionId, SessionWeather } from '../../game/season/types';
 import { compoundPace, fastestCompoundFor } from '../../game/tyreModel';
 import type { CompoundId, RaceConfig } from '../../game/types';
@@ -274,6 +274,8 @@ function QualifyingSegment({ season, controller, session, q }: { season: SeasonS
   const [choices, setChoices] = useState<Record<string, QualiChoice>>(() => Object.fromEntries(stillIn.map((id) => [id, { ...suggested }])));
   const last = q.segments[q.segments.length - 1];
   const fastest = fastestCompoundFor(wetness, allowed);
+  const field = q.segments[0]?.entries.length ?? DRIVERS.length;
+  const cuts = qualiCuts(field);
   const set = (id: string, patch: Partial<QualiChoice>) => setChoices((c) => ({ ...c, [id]: { ...(c[id] ?? suggested), ...patch } }));
   const legal = Object.fromEntries(stillIn.map((id) => [id, { ...choices[id], compound: allowed.includes(choices[id]?.compound) ? choices[id].compound : suggested.compound }]));
 
@@ -284,7 +286,7 @@ function QualifyingSegment({ season, controller, session, q }: { season: SeasonS
           <p className="session-weather">
             <WeatherIcon {...weatherIconProps({ scenario: wetness > 0.4 ? 'rainy' : wetness > 0 ? 'variable' : 'dry', wetness })} />{' '}
             {wetness <= 0.02 ? 'Dry track.' : `Track ${Math.round(wetness * 100)}% wet: ${COMPOUNDS[fastest].name} is the quickest tyre.`}{' '}
-            {index < 3 ? `The slowest six are knocked out; the top ${QUALI_CUTS[index - 1]} go through.` : 'Top ten shoot-out for pole.'}
+            {index < 3 ? `The slowest ${(index === 1 ? field : cuts[0]) - cuts[index - 1]} are knocked out; the top ${cuts[index - 1]} go through.` : 'Top ten shoot-out for pole.'}
           </p>
           {ids
             .filter((id) => !stillIn.includes(id))
@@ -360,7 +362,7 @@ function QualifyingSegment({ season, controller, session, q }: { season: SeasonS
             entries={last.entries}
             playerDriverId={ids}
             caption={`${segmentName(session, last.index)} classification`}
-            cutAfter={last.index < 3 ? QUALI_CUTS[last.index - 1] : undefined}
+            cutAfter={last.index < 3 ? cuts[last.index - 1] : undefined}
           />
         </div>
       )}
@@ -540,6 +542,7 @@ function SessionResult({ season, session }: { season: SeasonState; session: Sess
 }
 
 export function QualiResultTable({ q, playerDriverIds }: { q: QualifyingState; playerDriverIds: string[] }) {
+  const [q1Cut] = qualiCuts(q.grid?.length ?? DRIVERS.length);
   const timeIn = (seg: number, id: string) => q.segments[seg]?.entries.find((e) => e.driverId === id)?.time;
   return (
     <div className="table-scroll">
@@ -558,7 +561,7 @@ export function QualiResultTable({ q, playerDriverIds }: { q: QualifyingState; p
         </thead>
         <tbody>
           {(q.grid ?? []).map((id, i) => (
-            <tr key={id} className={`${playerDriverIds.includes(id) ? 'is-player' : ''}${i + 1 === 10 || i + 1 === 16 ? ' is-cut' : ''}`}>
+            <tr key={id} className={`${playerDriverIds.includes(id) ? 'is-player' : ''}${i + 1 === 10 || i + 1 === q1Cut ? ' is-cut' : ''}`}>
               <td>{i + 1}</td>
               <td>
                 <span className="team-dot" style={{ background: getTeam(getDriver(id).teamId).color }} aria-hidden="true" /> {getDriver(id).name}

@@ -230,3 +230,41 @@ test('career: factory, setup work, both cars in qualifying and a live Grand Prix
   await page.screenshot({ path: 'test-results/career-inbox.png', fullPage: true });
   expect(problems).toEqual([]);
 });
+
+test('career with a team of your own: 24 cars in qualifying and on the pit wall', async ({ page }) => {
+  const problems = watchForErrors(page);
+  await page.goto('./');
+  await page.getByRole('button', { name: /Team Principal career/ }).click();
+  await page.locator('label.team-card', { hasText: 'Create a team' }).click();
+  await page.getByLabel('Team name').fill('Txingudi Motorsport');
+  await page.getByLabel('Short name').fill('TXI');
+  await page.getByRole('radio', { name: 'Colour #29b6ff' }).check({ force: true });
+  await page.locator('label.segmented__option', { hasText: 'Low drag' }).click();
+  await page.locator('label.segmented__option', { hasText: 'Manufacturer works team' }).click();
+  await page.locator('summary', { hasText: 'Season seed' }).click();
+  await page.getByLabel('Season seed').fill('2027');
+  await page.screenshot({ path: 'test-results/create-team.png', fullPage: true });
+  await page.getByRole('button', { name: 'Start the career' }).click();
+
+  await expect(page.getByRole('region', { name: 'Your team' })).toContainText('Txingudi Motorsport');
+  await page.getByRole('button', { name: 'Skip the rest of testing' }).click();
+  for (const fp of ['FP1', 'FP2', 'FP3']) await page.getByRole('button', { name: `Run ${fp}` }).click();
+  await expect(page.getByText(/The slowest 7 are knocked out; the top 17 go through/)).toBeVisible();
+  for (let i = 0; i < 3; i++) {
+    const finish = page.getByRole('button', { name: 'Finish the session' });
+    if (await finish.isVisible()) {
+      await finish.click();
+      break;
+    }
+    await page.getByRole('button', { name: /^Run Q[123]$/ }).click();
+  }
+  await expect(page.getByRole('table', { name: 'Qualifying result' }).locator('tbody tr')).toHaveCount(24);
+  await page.getByRole('button', { name: 'Go to the pit wall' }).click();
+  await expect(page.getByRole('heading', { name: 'Lap 1 call' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Timing tower' }).locator('li')).toHaveCount(24);
+  await expect(page.getByRole('list', { name: 'Timing tower' }).getByLabel(/Txingudi Motorsport \(your car\)/)).toHaveCount(2);
+  await page.getByRole('button', { name: 'Lights out' }).click();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'test-results/create-team-race.png' });
+  expect(problems).toEqual([]);
+});

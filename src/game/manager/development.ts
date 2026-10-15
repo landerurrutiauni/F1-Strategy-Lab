@@ -6,6 +6,7 @@
  */
 import type { Rng } from '../rng';
 import { CAR_STATS, type CarStat, type CarStats } from './carStats';
+import { TEAM_LEVELS, customTeamFor } from './customTeam';
 
 export type PartId = 'frontWing' | 'rearWing' | 'floor' | 'sidepods' | 'suspension';
 export type FacilityId = 'windTunnel' | 'cfd' | 'simulator' | 'factory' | 'pitCrew';
@@ -92,9 +93,26 @@ export function facilityUpgrade(level: number): { cost: number; days: number } {
   return { cost: 5 + 4 * level, days: 14 + 7 * level };
 }
 
+/** How established a team is: the real teams by their 2026 status, your own team by its starting level. */
+export function teamTier(teamId: string): 'top' | 'mid' | 'works' {
+  const custom = customTeamFor(teamId);
+  return custom ? TEAM_LEVELS[custom.level].tier : TEAM_TIER[teamId] ?? 'mid';
+}
+
 /** Facility levels a team starts with, by how established it is. */
 export function initialFacilities(teamId: string): Facilities {
-  const tier = TEAM_TIER[teamId] ?? 'mid';
+  const custom = customTeamFor(teamId);
+  if (custom) {
+    const level = TEAM_LEVELS[custom.level].facilities;
+    return {
+      windTunnel: { level },
+      cfd: { level },
+      simulator: { level: Math.max(1, level - (custom.level === 'startup' ? 1 : 0)) },
+      factory: { level },
+      pitCrew: { level },
+    };
+  }
+  const tier = teamTier(teamId);
   const base = tier === 'top' ? 4 : tier === 'works' ? 3 : 2;
   return {
     windTunnel: { level: base },
@@ -167,7 +185,7 @@ export function applyGains(stats: CarStats, gains: Partial<CarStats>): CarStats 
  * Returns the gains and an optional headline for the paddock news.
  */
 export function rivalDevelopment(teamId: string, stats: CarStats, rng: Rng): { gains: Partial<CarStats>; total: number } {
-  const tier = TEAM_TIER[teamId] ?? 'mid';
+  const tier = teamTier(teamId);
   const budget = tier === 'top' ? 1.3 : tier === 'works' ? 1.1 : 0.95;
   const total = rng.chance(0.08) ? -rng.range(0.5, 1.5) : rng.range(0.4, 2.8) * budget;
   const gains: Partial<CarStats> = {};

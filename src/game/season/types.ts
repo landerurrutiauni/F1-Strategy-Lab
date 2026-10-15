@@ -1,4 +1,5 @@
 import type { CarStats } from '../manager/carStats';
+import type { CustomTeamInput } from '../manager/customTeam';
 import type { Facilities, PartId } from '../manager/development';
 import type { Finance, Sponsor } from '../manager/finance';
 import type { DriverSetup, SetupFeedback } from '../manager/setup';
@@ -152,8 +153,10 @@ export interface WeekendState {
 }
 
 export interface SeasonConfig {
-  /** The team you run as Team Principal (both cars). */
+  /** The team you run as Team Principal (both cars): a real team, or 'custom' for your own. */
   teamId: string;
+  /** Design of your own team when teamId is 'custom'; it joins the grid as the twelfth team. */
+  customTeam?: CustomTeamInput;
   difficulty: Difficulty;
   seed: number;
 }

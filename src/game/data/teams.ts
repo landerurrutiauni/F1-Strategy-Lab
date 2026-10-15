@@ -9,7 +9,7 @@ import type { DriverSpec, TeamSpec } from '../types';
  * inspired by the 2026 season form, not official or measured data, and the strategy
  * profiles describe how the in-game AI behaves, not how the real teams operate.
  */
-export const TEAMS: TeamSpec[] = [
+const BASE_TEAMS_LIST: TeamSpec[] = [
   { id: 'mercedes', name: 'Mercedes', short: 'MER', color: '#00d7b6', profile: 'adaptive', carPace: -0.55, approach: 'Adaptive: reacts to degradation, weather and Safety Cars.' },
   { id: 'ferrari', name: 'Ferrari', short: 'FER', color: '#ff2d45', profile: 'balanced', carPace: -0.42, approach: 'Balanced: follows a sensible plan and rarely deviates.' },
   { id: 'mclaren', name: 'McLaren', short: 'MCL', color: '#ff8000', profile: 'adaptive', carPace: -0.34, approach: 'Adaptive: reacts to degradation, weather and Safety Cars.' },
@@ -36,7 +36,7 @@ const d = (
   consistency = 0.15,
 ): DriverSpec => ({ id, teamId, name, code, number, engineer, skill, errorProneness, tyreSmoothness, consistency });
 
-export const DRIVERS: DriverSpec[] = [
+const BASE_DRIVERS_LIST: DriverSpec[] = [
   d('rus', 'mercedes', 'George Russell', 'RUS', 63, 'Marcus Dudley', -0.08, 0.9, 0.98, 0.13),
   d('ant', 'mercedes', 'Kimi Antonelli', 'ANT', 12, 'Peter Bonnington', -0.08, 1.1, 1, 0.16),
   d('lec', 'ferrari', 'Charles Leclerc', 'LEC', 16, 'Bryan Bozzi', -0.1, 1, 1, 0.14),
@@ -63,8 +63,27 @@ export const DRIVERS: DriverSpec[] = [
 
 export const DEFAULT_PLAYER_DRIVER_ID = 'nor';
 
-const teamById = new Map(TEAMS.map((t) => [t.id, t]));
-const driverById = new Map(DRIVERS.map((dr) => [dr.id, dr]));
+/** The eleven real 2026 teams and their 22 drivers, without any team created by the player. */
+export const BASE_TEAMS: readonly TeamSpec[] = BASE_TEAMS_LIST;
+export const BASE_DRIVERS: readonly DriverSpec[] = BASE_DRIVERS_LIST;
+
+/**
+ * The grid in use: the real teams plus, during a career with a team of your own, that team as
+ * the twelfth entry. The arrays are updated in place so every module sees the same grid.
+ */
+export const TEAMS: TeamSpec[] = [...BASE_TEAMS_LIST];
+export const DRIVERS: DriverSpec[] = [...BASE_DRIVERS_LIST];
+
+let teamById = new Map(TEAMS.map((t) => [t.id, t]));
+let driverById = new Map(DRIVERS.map((dr) => [dr.id, dr]));
+
+/** Adds a team created by the player to the grid (or removes it with null). */
+export function setExtraTeam(extra: { team: TeamSpec; drivers: DriverSpec[] } | null): void {
+  TEAMS.splice(0, TEAMS.length, ...BASE_TEAMS_LIST, ...(extra ? [extra.team] : []));
+  DRIVERS.splice(0, DRIVERS.length, ...BASE_DRIVERS_LIST, ...(extra ? extra.drivers : []));
+  teamById = new Map(TEAMS.map((t) => [t.id, t]));
+  driverById = new Map(DRIVERS.map((dr) => [dr.id, dr]));
+}
 
 export function getTeam(id: string): TeamSpec {
   const team = teamById.get(id);

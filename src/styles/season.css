@@ -895,3 +895,133 @@
     grid-row: 2;
   }
 }
+
+/* Create a team */
+.team-card--new {
+  border-style: dashed;
+}
+
+.team-card--new .team-card__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.designer {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s4);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-top: 3px solid var(--team, var(--lime));
+  border-radius: var(--radius);
+}
+
+.designer__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 750;
+}
+
+.designer__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s3);
+}
+
+.designer__row .field--short {
+  max-width: 140px;
+}
+
+.designer__row:has(.field--short) {
+  grid-template-columns: minmax(0, 1fr) 140px;
+}
+
+.designer .field {
+  margin-top: var(--s2);
+}
+
+.designer .segmented {
+  margin-top: var(--s3);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.swatch-pick {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--carbon-600);
+  cursor: pointer;
+}
+
+.swatch-pick input[type='radio'] {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+
+.swatch-pick.is-checked {
+  outline: 2px solid var(--paper);
+  outline-offset: 2px;
+}
+
+.swatch-pick:has(input:focus-visible) {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+.swatch-pick--custom {
+  overflow: hidden;
+  background: conic-gradient(#ff4f4f, #ffd43b, #47d46e, #29b6ff, #a06cff, #ff4fd8, #ff4f4f);
+}
+
+.swatch-pick--custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.designer__drivers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+
+.designer__driver {
+  margin: 0;
+  padding: var(--s3);
+  border: var(--line-soft);
+  border-radius: var(--radius);
+  background: var(--carbon-900);
+  min-width: 0;
+}
+
+.designer__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3) var(--s6);
+  margin: var(--s3) 0 0;
+}
+
+.designer__summary dt {
+  font-size: var(--text-xs);
+  color: var(--graphite);
+}
+
+.designer__summary dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 750;
+}

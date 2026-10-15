@@ -1,4 +1,5 @@
 import { CIRCUITS } from '../data/circuits';
+import { CUSTOM_TEAM_ID, activateCustomTeam } from '../manager/customTeam';
 import { getBrowserStorage, type StorageLike } from '../persistence';
 import { isValidSeasonConfig } from './season';
 import type { SeasonState } from './types';
@@ -58,9 +59,15 @@ export function loadSeason(storage: StorageLike | null = getBrowserStorage()): S
   try {
     if (storage.getItem(LEGACY_SEASON_KEY) !== null) storage.removeItem(LEGACY_SEASON_KEY);
     const raw = storage.getItem(SEASON_KEY);
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
+    if (!raw) {
+      activateCustomTeam(null);
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<SeasonState> | null;
+    // A team of your own has to be on the grid before the rest of the career can be checked.
+    activateCustomTeam(parsed?.config?.teamId === CUSTOM_TEAM_ID ? parsed.config.customTeam : null);
     if (looksLikeSeason(parsed)) return parsed;
+    activateCustomTeam(null);
     storage.removeItem(SEASON_KEY);
     return null;
   } catch {

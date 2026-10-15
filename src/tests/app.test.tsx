@@ -214,4 +214,53 @@ describe('Team Principal career', () => {
     await user.click(screen.getByRole('button', { name: /Continue career/ }));
     expect(screen.getByRole('heading', { name: /Sprint Qualifying: SQ1/ })).toBeInTheDocument();
   }, 90_000);
+
+  it('creates a team of your own that joins the grid as the twelfth team', async () => {
+    const user = userEvent.setup();
+    const first = renderApp();
+    await user.click(screen.getByRole('button', { name: /Team Principal career/ }));
+    await user.click(screen.getByRole('radio', { name: /Create a team/ }));
+    expect(screen.getByRole('heading', { name: 'Create your team' })).toBeInTheDocument();
+
+    const name = screen.getByLabelText('Team name');
+    await user.clear(name);
+    await user.type(name, 'Bilbao Racing');
+    const short = screen.getByLabelText('Short name');
+    await user.clear(short);
+    await user.type(short, 'bil');
+    expect(short).toHaveValue('BIL');
+    await user.click(screen.getByRole('radio', { name: 'Colour #ffd23f' }));
+    await user.selectOptions(screen.getByLabelText('Power unit'), 'honda');
+    await user.click(screen.getByRole('radio', { name: /High downforce/ }));
+    await user.click(screen.getByRole('radio', { name: /New entry/ }));
+
+    // A taken car number is rejected until it is changed.
+    const numbers = screen.getAllByLabelText('Car number');
+    await user.clear(numbers[0]);
+    await user.type(numbers[0], '44');
+    expect(screen.getByText('Driver 1: number 44 is already taken.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start the career' })).toBeDisabled();
+    await user.clear(numbers[0]);
+    await user.type(numbers[0], '9');
+    const driverNames = screen.getAllByLabelText('Name');
+    await user.clear(driverNames[0]);
+    await user.type(driverNames[0], 'Ane Etxeberria');
+    expect(screen.getAllByLabelText('Timing code')[0]).toHaveValue('ETX');
+    await user.click(screen.getByRole('button', { name: 'Start the career' }));
+
+    // The new team runs the season with its own drivers.
+    expect(screen.getByRole('region', { name: 'Your team' })).toHaveTextContent('Bilbao Racing');
+    expect(screen.getByRole('region', { name: 'Your team' })).toHaveTextContent('Ane Etxeberria');
+    await user.click(screen.getByRole('button', { name: 'Run day 1' }));
+    const timesheet = screen.getByRole('table', { name: /Test 1 day 1 timesheet/ });
+    expect(within(timesheet).getAllByRole('row')).toHaveLength(13);
+    await user.click(screen.getByRole('tab', { name: 'Standings' }));
+    expect(within(screen.getByRole('table', { name: 'Constructors’ championship' })).getByText('Bilbao Racing')).toBeInTheDocument();
+
+    // After a reload the team is still on the grid.
+    first.unmount();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /Continue career/ }));
+    expect(screen.getByRole('region', { name: 'Your team' })).toHaveTextContent('Bilbao Racing');
+  }, 60_000);
 });

@@ -43,8 +43,8 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
             You are the Team Principal of a 2026 Formula 1 team. In the career you run the factory and the budget between races; on race day you run the
             pit wall for both of your cars. You do not steer the cars: you choose the pace, the tyres and when to stop. Switch between your two cars with the
             tabs above the decision panel (or <kbd>C</kbd>).
-            After <strong>Lights out</strong> the race runs live over the circuit's full distance: all 22 cars lap the circuit at their own pace, pull into
-            the pit lane for their stops and follow the Safety Car when it comes out. Speeds run from 4× to 64× real time; at 16× a typical Grand Prix takes about
+            After <strong>Lights out</strong> the race runs live over the circuit's full distance: every car (22, or 24 with a team of your own) laps the circuit at its own pace, pulls into
+            the pit lane for its stops and follows the Safety Car when it comes out. Speeds run from 4× to 64× real time; at 16× a typical Grand Prix takes about
             six minutes.
           </p>
         </section>
@@ -116,8 +116,10 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
         <section>
           <h2>Team Principal career</h2>
           <p>
-            Pick one of the eleven 2026 teams. The board sets a target in the constructors' championship, three partners pay you every race weekend and the
-            calendar runs from the first test in February to Abu Dhabi in December. Between sessions you work in the headquarters tabs.
+            Pick one of the eleven 2026 teams, or choose <strong>Create a team</strong> to enter your own: name, colours, power unit, car concept, starting
+            level and two drivers of your choice. Your team joins the grid as the twelfth entry (24 cars; seven drop out in each of Q1 and Q2). The board
+            sets a target in the constructors' championship, three partners pay you every race weekend and the calendar runs from the first test in
+            February to Abu Dhabi in December. Between sessions you work in the headquarters tabs.
           </p>
           <ul>
             <li>

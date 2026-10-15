@@ -30,8 +30,14 @@ import type {
 const QUALI_FUEL_GAIN = 1.8;
 /** Track evolution: the circuit gets quicker as rubber goes down in Q2 and Q3 (s). */
 const TRACK_EVOLUTION = [0, -0.15, -0.3];
-/** Cars left after Q1 and Q2 (22-car field: six drop out in each). */
-export const QUALI_CUTS = [16, 10];
+/**
+ * Cars left after Q1 and Q2. The top ten always reach Q3 and the rest drop out in equal parts:
+ * six in each with 22 cars, seven with 24 (when your own team joins the grid).
+ */
+export function qualiCuts(fieldSize = DRIVERS.length): [number, number] {
+  const out = Math.ceil((fieldSize - 10) / 2);
+  return [fieldSize - out, 10];
+}
 
 export interface SessionContext {
   circuit: CircuitSpec;
@@ -311,7 +317,8 @@ export function runQualifyingSegment(state: QualifyingState, ctx: SessionContext
     return runLap(ctx, id, c, wetness, index, rng);
   });
   const sorted = sortEntries(entries);
-  const keep = index < 3 ? QUALI_CUTS[index - 1] : sorted.length;
+  const field = index === 1 ? participants.length : state.segments[0].entries.length;
+  const keep = index < 3 ? qualiCuts(field)[index - 1] : sorted.length;
   const eliminated = sorted.slice(keep).map((e) => e.driverId);
   const segments = [...state.segments, { index, wetness, entries: sorted, eliminated, choices }];
   const saved = { ...state.savedSoftSets };

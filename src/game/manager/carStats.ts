@@ -5,6 +5,7 @@
  */
 import { TEAMS, getTeam } from '../data/teams';
 import type { CircuitSpec } from '../types';
+import { customCharacter, customTeamFor } from './customTeam';
 
 export type CarStat = 'lowSpeed' | 'mediumSpeed' | 'highSpeed' | 'straightLine' | 'tyreCare';
 export type CarStats = Record<CarStat, number>;
@@ -41,13 +42,18 @@ const CHARACTER: Record<string, Partial<CarStats>> = {
   cadillac: { tyreCare: 2, highSpeed: -2 },
 };
 
-/** Starting ratings: the team's overall pace spread over the five ratings by its character. */
-export function initialStats(teamId: string): CarStats {
-  const overall = REFERENCE - getTeam(teamId).carPace / SECONDS_PER_POINT;
-  const character = CHARACTER[teamId] ?? {};
+/** Ratings from an overall pace (s/lap) spread over the five ratings by a character. */
+export function statsFromPace(carPace: number, character: Partial<CarStats>): CarStats {
+  const overall = REFERENCE - carPace / SECONDS_PER_POINT;
   const stats = {} as CarStats;
   for (const stat of CAR_STATS) stats[stat] = Math.round(Math.min(99, Math.max(20, overall + (character[stat] ?? 0))));
   return stats;
+}
+
+/** Starting ratings: the team's overall pace spread over the five ratings by its character. */
+export function initialStats(teamId: string): CarStats {
+  const custom = customTeamFor(teamId);
+  return statsFromPace(getTeam(teamId).carPace, custom ? customCharacter(custom) : CHARACTER[teamId] ?? {});
 }
 
 export function allInitialStats(): Record<string, CarStats> {

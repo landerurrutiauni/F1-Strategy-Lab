@@ -4,7 +4,8 @@
  * count towards it, driver salaries and facility building do not.
  */
 import type { Rng } from '../rng';
-import { TEAM_TIER } from './development';
+import { TEAM_LEVELS, customTeamFor } from './customTeam';
+import { teamTier } from './development';
 
 export const COST_CAP = 215;
 /** Operating cost per race weekend (counts towards the cap). */
@@ -70,7 +71,12 @@ export interface TeamFinanceProfile {
 }
 
 export function financeProfile(teamId: string): TeamFinanceProfile {
-  const tier = TEAM_TIER[teamId] ?? 'mid';
+  const custom = customTeamFor(teamId);
+  if (custom) {
+    const level = TEAM_LEVELS[custom.level];
+    return { balance: level.balance, sponsorIncome: level.sponsorIncome, salaries: level.salaries };
+  }
+  const tier = teamTier(teamId);
   if (tier === 'top') return { balance: 60, sponsorIncome: 9.5, salaries: 3 };
   if (tier === 'works') return { balance: 55, sponsorIncome: 7, salaries: 1 };
   return { balance: 40, sponsorIncome: 7.5, salaries: 1.2 };
@@ -78,7 +84,7 @@ export function financeProfile(teamId: string): TeamFinanceProfile {
 
 /** A title partner and two smaller partners, with objectives that suit the team's level. */
 export function createSponsors(teamId: string, rng: Rng): Sponsor[] {
-  const tier = TEAM_TIER[teamId] ?? 'mid';
+  const tier = teamTier(teamId);
   const income = financeProfile(teamId).sponsorIncome;
   const names = [...SPONSOR_NAMES];
   const take = () => names.splice(Math.floor(rng.next() * names.length), 1)[0];

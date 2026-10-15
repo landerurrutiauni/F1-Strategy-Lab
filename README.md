@@ -9,7 +9,8 @@ Play a whole **career season** (pre-season testing in Bahrain, then all 23 round
 ## Features
 
 - **Team Principal career**:
-  - Pick any of the 11 teams of 2026 (real drivers, numbers and race engineers). The board sets a constructors' target from the car's pace; three (fictional) partners pay every race and add bonuses for objectives such as both cars in the points.
+  - Pick any of the 11 teams of 2026 (real drivers, numbers and race engineers), or **create your own team**: name, short name, livery colour, power-unit supplier, car concept (balanced, low drag, high downforce, tyre friendly), starting level (new entry, established investors, manufacturer works team) and two drivers with their numbers, timing codes, race engineers and experience. Your team joins the grid as the twelfth entry, so 24 cars race and seven drop out in each of Q1 and Q2.
+  - The board sets a constructors' target from the car's pace; three (fictional) partners pay every race and add bonuses for objectives such as both cars in the points.
   - **Car development**: five car ratings (low, medium and high-speed corners, straight-line speed, tyre care), weighted differently at every circuit. Design and build new parts (front wing, rear wing, floor, sidepods, suspension) over calendar weeks; gains vary, with diminishing returns. Rivals develop between rounds, faster on harder difficulty.
   - **Cost cap** ($215M): parts, race operations and crash repairs count; the operating costs of the remaining weekends are set aside before any development money.
   - **Factory**: wind tunnel, CFD cluster, factory, driver simulator and pit-crew training, levels 1–5, upgraded over weeks with money from the bank (outside the cap).
@@ -126,6 +127,7 @@ lap = circuit base
 - **Qualifying**: one flying lap per run with low fuel, track evolution (Q2 −0.15 s, Q3 −0.3 s), tyre and wetness effects, noise, traffic (one late run) and mistakes or deleted laps (more likely in the wet and on riskier plans).
 - **Reliability**: in career races each car has a small per-lap chance of a mechanical retirement, from the team's reliability and its testing mileage.
 - **Race distances**: every Grand Prix and Sprint runs its official number of laps (for example Monaco 78, Spa 44, the Silverstone Sprint 17).
+- **Your own team**: the starting level sets the car pace (+0.62, +0.12 or −0.30 s per lap, like the real teams' ratings), budget ($80M, $55M or $65M), facility levels (2, 3 or 4) and partner income; the concept spreads the ratings (for example low drag: straight-line +5, low-speed corners −4); the power unit adds up to 2 straight-line points and changes reliability a little; experienced drivers are quicker and steadier than rookies. With 24 cars, the top ten still reach Q3 and seven drop out in each of Q1 and Q2. The team and its drivers are saved with the career and leave the grid when a career with a real team starts.
 
 All performance values (team pace, driver ratings, circuit characteristics, reliability) are illustrative numbers chosen for gameplay, not official or measured data.
 

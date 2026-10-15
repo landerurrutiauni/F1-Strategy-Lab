@@ -6,14 +6,14 @@
  */
 import { RACE_POINTS, SPRINT_POINTS } from '../constants';
 import { CIRCUITS, TESTING_CIRCUIT, getCircuit } from '../data/circuits';
-import { DRIVERS, TEAMS, driversOfTeam, getDriver, getTeam } from '../data/teams';
+import { BASE_TEAMS, DRIVERS, TEAMS, driversOfTeam, getDriver, getTeam } from '../data/teams';
 import { advanceLap, getManagedCars, getPlayerCar } from '../engine';
 import { STAT_LABEL, allInitialStats, type CarStat } from '../manager/carStats';
+import { CUSTOM_TEAM_ID, activateCustomTeam, customReliability, customTeamProblems } from '../manager/customTeam';
 import {
   FACILITIES,
   MAX_FACILITY_LEVEL,
   PARTS,
-  TEAM_TIER,
   addDays,
   applyGains,
   designDays,
@@ -23,6 +23,7 @@ import {
   maxProjects,
   pitCrewBonus,
   rivalDevelopment,
+  teamTier,
   upgradeGains,
   type FacilityId,
   type PartId,
@@ -120,10 +121,17 @@ export function leadDriverId(season: SeasonState): string {
   return managedDrivers(season)[0];
 }
 
-/** The board's expectation: where the car's pace says the team should finish, give or take one place. */
+/**
+ * The board's expectation: where the car's pace says the team should finish, give or take one
+ * place (and never last).
+ */
+export function boardTarget(carPace: number, field: ReadonlyArray<{ carPace: number }>): number {
+  const rank = field.filter((t) => t.carPace < carPace).length + 1;
+  return Math.min(field.length - 1, rank + 1);
+}
+
 export function boardTargetFor(teamId: string): number {
-  const rank = [...TEAMS].sort((a, b) => a.carPace - b.carPace).findIndex((t) => t.id === teamId) + 1;
-  return Math.min(10, rank + 1);
+  return boardTarget(getTeam(teamId).carPace, TEAMS);
 }
 
 function message(season: SeasonState, from: string, title: string, body: string, tone: InboxMessage['tone']): SeasonState {
@@ -141,7 +149,14 @@ export function markRead(season: SeasonState, id?: number): SeasonState {
   return { ...season, inbox: season.inbox.map((m) => (id === undefined || m.id === id ? { ...m, read: true } : m)) };
 }
 
-export function createSeason(config: SeasonConfig): SeasonState {
+/**
+ * Starts a career. A team of your own (teamId 'custom') joins the grid as the twelfth team for
+ * as long as this career is played.
+ */
+export function createSeason(input: SeasonConfig): SeasonState {
+  const custom = input.teamId === CUSTOM_TEAM_ID ? input.customTeam ?? null : null;
+  activateCustomTeam(custom);
+  const config: SeasonConfig = custom ? { ...input, customTeam: custom } : { teamId: input.teamId, difficulty: input.difficulty, seed: input.seed };
   const seed = normalizeSeed(config.seed);
   const rng = createRng(deriveSeed(seed, SALT.setup));
   const teamId = config.teamId;
@@ -150,7 +165,9 @@ export function createSeason(config: SeasonConfig): SeasonState {
   for (const team of TEAMS) {
     // New power-unit projects start out more fragile.
     const fragile = team.id === 'cadillac' || team.id === 'audi' ? 0.12 : 0;
-    reliability[team.id] = Math.min(0.9, Math.max(0.15, rng.range(0.35, 0.75) - fragile));
+    const roll = rng.range(0.35, 0.75) - fragile;
+    const base = custom && team.id === CUSTOM_TEAM_ID ? customReliability(custom) + (roll - 0.55) * 0.3 : roll;
+    reliability[team.id] = Math.min(0.9, Math.max(0.15, base));
     development[team.id] =
       team.id === teamId
         ? { ...ZERO_DEV }
@@ -320,7 +337,7 @@ export function idealFor(season: SeasonState, driverId: string): SetupValues {
 /** Setup quality of rival cars: decent, never perfect, a little better at the big teams. */
 function aiSetupQuality(season: SeasonState, driverId: string, round: number): number {
   const rng = createRng(deriveSeed(season.config.seed, SALT.aiSetup + round * 50 + DRIVERS.findIndex((d) => d.id === driverId)));
-  return rng.range(0.66, 0.86) + (TEAM_TIER[getDriver(driverId).teamId] === 'top' ? 0.04 : 0);
+  return rng.range(0.66, 0.86) + (teamTier(getDriver(driverId).teamId) === 'top' ? 0.04 : 0);
 }
 
 /** How close a car's setup is to the ideal this weekend (0–1). */
@@ -811,7 +828,7 @@ export function isValidSeasonConfig(config: Partial<SeasonConfig> | null | undef
   return (
     !!config &&
     typeof config.teamId === 'string' &&
-    TEAMS.some((t) => t.id === config.teamId) &&
+    (config.teamId === CUSTOM_TEAM_ID ? customTeamProblems(config.customTeam).length === 0 : BASE_TEAMS.some((t) => t.id === config.teamId)) &&
     (config.difficulty === 'easy' || config.difficulty === 'normal' || config.difficulty === 'hard') &&
     typeof config.seed === 'number' &&
     Number.isInteger(config.seed) &&

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { CIRCUITS, SPRINT_WEEKENDS, getCircuit } from '../game/data/circuits';
-import { DRIVERS } from '../game/data/teams';
+import { BASE_DRIVERS, DRIVERS, TEAMS, getTeam } from '../game/data/teams';
+import { CUSTOM_TEAM_ID, DEFAULT_CUSTOM_TEAM, activateCustomTeam, customTeamProblems, suggestCode } from '../game/manager/customTeam';
 import { createRace, getManagedCars } from '../game/engine';
 import { initialStats, statsPace } from '../game/manager/carStats';
 import { PARTS, designDays, facilityUpgrade } from '../game/manager/development';
@@ -10,6 +11,7 @@ import { weekendSessions } from '../game/season/calendar';
 import {
   allowedCompounds,
   createQualifying,
+  qualiCuts,
   qualifyingGrid,
   runQualifyingSegment,
   type SessionContext,
@@ -26,6 +28,7 @@ import {
   engineerProposal,
   finishTesting,
   idealFor,
+  isValidSeasonConfig,
   managedDrivers,
   managedInQualifying,
   markRead,
@@ -363,5 +366,70 @@ describe('season persistence', () => {
     storage.setItem('f1sl.career.v1', '{"version":2,"config":{}}');
     expect(loadSeason(storage)).toBeNull();
     expect(saveSeason(s, new BrokenStorage())).toBe(false);
+  });
+});
+
+describe('a team of your own', () => {
+  afterEach(() => activateCustomTeam(null));
+  const ownSeason = (seed = 9) => createSeason({ teamId: CUSTOM_TEAM_ID, customTeam: DEFAULT_CUSTOM_TEAM, difficulty: 'normal', seed });
+
+  it('checks the design: names, codes and numbers must be free', () => {
+    expect(customTeamProblems(DEFAULT_CUSTOM_TEAM)).toEqual([]);
+    expect(suggestCode('Alex Rivera')).toBe('RIV');
+    const clash = { ...DEFAULT_CUSTOM_TEAM, name: 'Ferrari', short: 'MER', drivers: [{ ...DEFAULT_CUSTOM_TEAM.drivers[0], code: 'HAM', number: 44 }, DEFAULT_CUSTOM_TEAM.drivers[1]] as typeof DEFAULT_CUSTOM_TEAM.drivers };
+    const problems = customTeamProblems(clash);
+    expect(problems).toEqual(
+      expect.arrayContaining([
+        'That team name is already on the grid.',
+        'MER is already used by another team.',
+        'Driver 1: HAM is already used by another driver.',
+        'Driver 1: number 44 is already taken.',
+      ]),
+    );
+    expect(isValidSeasonConfig({ teamId: CUSTOM_TEAM_ID, customTeam: clash, difficulty: 'normal', seed: 1 })).toBe(false);
+    expect(isValidSeasonConfig({ teamId: CUSTOM_TEAM_ID, customTeam: DEFAULT_CUSTOM_TEAM, difficulty: 'normal', seed: 1 })).toBe(true);
+  });
+
+  it('joins the grid as the twelfth team with your drivers', () => {
+    const s = ownSeason();
+    expect(TEAMS).toHaveLength(12);
+    expect(DRIVERS).toHaveLength(24);
+    expect(getTeam(CUSTOM_TEAM_ID).name).toBe('Phoenix Racing');
+    expect(managedDrivers(s)).toEqual(['custom-1', 'custom-2']);
+    expect(s.carStats[CUSTOM_TEAM_ID]).toBeDefined();
+    expect(s.finance.balance).toBe(55);
+    expect(s.facilities.windTunnel.level).toBe(3);
+    // A new career with a real team takes it off the grid again.
+    createSeason({ teamId: 'haas', difficulty: 'normal', seed: 1 });
+    expect(TEAMS).toHaveLength(11);
+    expect(DRIVERS).toEqual(BASE_DRIVERS);
+  });
+
+  it('runs 24-car qualifying with seven out in Q1 and Q2 and races both of your cars', () => {
+    expect(qualiCuts(22)).toEqual([16, 10]);
+    expect(qualiCuts(24)).toEqual([17, 10]);
+    let s = finishTesting(ownSeason());
+    for (let i = 0; i < 3; i++) s = runPracticeSession(s, 'setup');
+    s = completeQualifying(runQualifying(s, null));
+    const q = s.weekend!.qualifying.quali!;
+    expect(q.segments.map((seg) => seg.entries.length)).toEqual([24, 17, 10]);
+    expect(q.grid).toHaveLength(24);
+    const race = simulateWithStrategist(quickRace(raceConfigFor(s, 'medium')!));
+    expect(race.cars).toHaveLength(24);
+    expect(getManagedCars(race).map((c) => c.driverId).sort()).toEqual(['custom-1', 'custom-2']);
+    s = recordRace(s, race, true);
+    expect(s.round).toBe(2);
+    expect(constructorStandings(s).some((r) => r.id === CUSTOM_TEAM_ID)).toBe(true);
+  });
+
+  it('is saved with the career and back on the grid after loading', () => {
+    const storage = new MemoryStorage();
+    const s = ownSeason();
+    saveSeason(s, storage);
+    activateCustomTeam(null);
+    expect(TEAMS).toHaveLength(11);
+    expect(loadSeason(storage)).toEqual(s);
+    expect(TEAMS).toHaveLength(12);
+    expect(getTeam(CUSTOM_TEAM_ID).short).toBe('PHX');
   });
 });

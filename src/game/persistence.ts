@@ -1,6 +1,6 @@
 import { getCircuit, isCircuitId } from './data/circuits';
 import { isCompoundId } from './data/tyres';
-import { getDriver, getTeam, isDriverId } from './data/teams';
+import { getDriver, getTeam } from './data/teams';
 import { getPlayerCar, validateConfig } from './engine';
 import { rateStrategy } from './rating';
 import type { CompoundId, Difficulty, PlayerDecision, RaceState, WeatherScenario } from './types';
@@ -71,7 +71,8 @@ export function isRaceRecord(value: unknown): value is RaceRecord {
   return (
     typeof r.id === 'string' &&
     typeof r.date === 'string' &&
-    isDriverId(r.driverId) &&
+    // Any driver id: records keep the names, so races with a team of your own stay listed.
+    typeof r.driverId === 'string' &&
     typeof r.driverName === 'string' &&
     typeof r.teamName === 'string' &&
     isCircuitId(r.circuitId) &&

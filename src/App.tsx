@@ -46,6 +46,22 @@ const urlParams = () => (typeof window !== 'undefined' ? new URLSearchParams(win
 
 const isValidSeed = (seed: number) => Number.isInteger(seed) && seed > 0 && seed <= 999999999;
 
+/**
+ * Quick-race settings whose cars are all on the grid. A team of your own leaves the grid when a
+ * career with a real team starts, so its drivers fall back to the default team.
+ */
+function onGrid(config: RaceConfig): RaceConfig {
+  if (isDriverId(config.playerDriverId) && (config.managedDriverIds ?? []).every((id) => isDriverId(id))) return config;
+  const lead = DEFAULT_PLAYER_DRIVER_ID;
+  const team = DRIVERS.filter((d) => d.teamId === getDriver(lead).teamId).map((d) => d.id);
+  return {
+    ...config,
+    playerDriverId: lead,
+    managedDriverIds: [lead, ...team.filter((id) => id !== lead)],
+    startCompounds: Object.fromEntries(team.map((id) => [id, config.startCompound])),
+  };
+}
+
 /** Default briefing settings, optionally pre-filled from the URL (handy for sharing and tests). */
 function initialConfig(): RaceConfig {
   const params = urlParams();
@@ -176,7 +192,11 @@ export default function App() {
   } else if (screen === 'season-setup') {
     content = (
       <SeasonSetupScreen
-        initial={{ teamId: season?.config.teamId ?? getDriver(config.playerDriverId).teamId, difficulty: season?.config.difficulty ?? config.difficulty }}
+        initial={{
+          teamId: season?.config.teamId ?? getDriver(onGrid(config).playerDriverId).teamId,
+          difficulty: season?.config.difficulty ?? config.difficulty,
+          customTeam: season?.config.customTeam,
+        }}
         hasSeason={!!season && season.phase !== 'finished'}
         onBack={() => setScreen('menu')}
         onStart={(cfg) => {
@@ -199,8 +219,10 @@ export default function App() {
     content = (
       <MenuScreen
         onNewRace={() => {
-          if (keepUrlSeed.current) keepUrlSeed.current = false;
-          else setConfig((c) => ({ ...c, seed: randomSeed() }));
+          if (keepUrlSeed.current) {
+            keepUrlSeed.current = false;
+            setConfig(onGrid);
+          } else setConfig((c) => ({ ...onGrid(c), seed: randomSeed() }));
           setScreen('briefing');
         }}
         onResume={() => {
