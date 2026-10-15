@@ -27,8 +27,8 @@ const TITLES: Record<Screen, string> = {
   records: 'Records | F1 Strategy Lab',
   settings: 'Settings | F1 Strategy Lab',
   about: 'About | F1 Strategy Lab',
-  season: '2026 season | F1 Strategy Lab',
-  'season-setup': 'New season | F1 Strategy Lab',
+  season: 'Team Principal | F1 Strategy Lab',
+  'season-setup': 'New career | F1 Strategy Lab',
 };
 
 /** True when a saved race is the unfinished Sprint or Grand Prix that a season session would start. */
@@ -176,7 +176,7 @@ export default function App() {
   } else if (screen === 'season-setup') {
     content = (
       <SeasonSetupScreen
-        initial={{ playerDriverId: season?.config.playerDriverId ?? config.playerDriverId, difficulty: season?.config.difficulty ?? config.difficulty }}
+        initial={{ teamId: season?.config.teamId ?? getDriver(config.playerDriverId).teamId, difficulty: season?.config.difficulty ?? config.difficulty }}
         hasSeason={!!season && season.phase !== 'finished'}
         onBack={() => setScreen('menu')}
         onStart={(cfg) => {

@@ -6,6 +6,7 @@ import { WET_TRACK_SLOWDOWN } from '../constants';
 import { COMPOUNDS } from '../data/tyres';
 import { DRIVERS, getDriver, getTeam } from '../data/teams';
 import { carPaceOffset } from '../lapTime';
+import { initialStats, statsPace, type CarStats } from '../manager/carStats';
 import { createRng, type Rng } from '../rng';
 import { compoundPace, fastestCompoundFor } from '../tyreModel';
 import type { CarEffects, CircuitSpec, CompoundId, Difficulty } from '../types';
@@ -35,7 +36,12 @@ export const QUALI_CUTS = [16, 10];
 export interface SessionContext {
   circuit: CircuitSpec;
   difficulty: Difficulty;
+  /** Your lead driver. */
   playerDriverId: string;
+  /** Every driver you run (both cars of your team); the lead driver alone when absent. */
+  managedDriverIds?: string[];
+  /** Car ratings by team; the 2026 starting ratings when absent. */
+  carStats?: Record<string, CarStats>;
   /** Effects for every driver in this session (team development, weekend preparation). */
   effects: Record<string, CarEffects>;
   seed: number;
@@ -56,11 +62,14 @@ export function sortEntries(entries: TimedEntry[]): TimedEntry[] {
     .map(({ e }) => e);
 }
 
+const isManaged = (ctx: SessionContext, driverId: string) => (ctx.managedDriverIds ?? [ctx.playerDriverId]).includes(driverId);
+
 /** One flying lap: car, driver, tyre, track wetness and a little noise. */
 function flyingLap(ctx: SessionContext, driverId: string, compound: CompoundId, wetness: number, extra: number, rng: Rng): number {
   const driver = getDriver(driverId);
+  const stats = ctx.carStats?.[driver.teamId] ?? initialStats(driver.teamId);
   const pace = carPaceOffset(
-    { teamId: driver.teamId, driverId, isPlayer: driverId === ctx.playerDriverId, paceBonus: ctx.effects[driverId]?.pace },
+    { teamId: driver.teamId, driverId, isPlayer: isManaged(ctx, driverId), paceBonus: ctx.effects[driverId]?.pace, carPace: statsPace(stats, ctx.circuit) },
     ctx.difficulty,
   );
   const base = ctx.circuit.baseLapTime - QUALI_FUEL_GAIN + pace + compoundPace(compound, wetness) + WET_TRACK_SLOWDOWN * wetness;
@@ -100,10 +109,10 @@ export function runTestDay(
   // One driver per team per day, alternating between the two team-mates.
   for (const team of new Set(DRIVERS.map((d) => d.teamId))) {
     const pair = DRIVERS.filter((d) => d.teamId === team);
-    const player = pair.find((d) => d.id === ctx.playerDriverId);
-    const driver = player ?? pair[(test + day) % 2];
-    const own = player ? spec : TEST_PROGRAMMES[rng.pick(programmes)];
-    const fuel = player ? spec.fuel : own.fuel + rng.range(-0.4, 1.2);
+    const mine = pair.some((d) => isManaged(ctx, d.id));
+    const driver = pair[(test + day) % 2];
+    const own = mine ? spec : TEST_PROGRAMMES[rng.pick(programmes)];
+    const fuel = mine ? spec.fuel : own.fuel + rng.range(-0.4, 1.2);
     const compound: CompoundId = rng.chance(0.55) ? 'soft' : rng.chance(0.6) ? 'medium' : 'hard';
     const time = flyingLap(ctx, driver.id, compound, 0, fuel + (day === 1 && test === 1 ? 0.5 : 0), rng);
     entries.push({ driverId: driver.id, time, compound, laps: rng.int(own.laps[0], own.laps[1]) });
@@ -140,15 +149,18 @@ export function developmentEffects(dev: Development): Required<Pick<CarEffects, 
 // ---------- Practice ----------
 
 export const PRACTICE_PROGRAMMES: Record<PracticeProgramme, { name: string; detail: string; area: keyof Preparation; fuel: number }> = {
-  setup: { name: 'Setup work', detail: 'Balance and ride-height changes. Pace for qualifying and the races.', area: 'setup', fuel: 0.9 },
+  setup: { name: 'Setup work', detail: 'Short runs between setup changes. Sharper driver feedback on the setup.', area: 'setup', fuel: 0.9 },
   'long-runs': { name: 'Long runs', detail: 'High-fuel stints on each compound. Less tyre wear in the races.', area: 'tyres', fuel: 1.9 },
   'quali-sim': { name: 'Qualifying simulation', detail: 'Low fuel and soft tyres. One-lap pace on Saturday.', area: 'quali', fuel: 0.15 },
 };
 
-/** Weekend effects of the player's preparation. */
+/**
+ * Weekend effects of the player's preparation. Setup knowledge pays off through the setup
+ * itself (see the setup work in practice), so only qualifying runs and long runs appear here.
+ */
 export function preparationEffects(prep: Preparation, session: 'quali' | 'race'): { pace: number; wear: number } {
   return {
-    pace: -0.18 * prep.setup + (session === 'quali' ? -0.12 * prep.quali : 0),
+    pace: session === 'quali' ? -0.12 * prep.quali : 0,
     wear: session === 'race' ? 1 - 0.08 * prep.tyres : 1,
   };
 }
@@ -165,7 +177,7 @@ export function runPractice(
   const wetness = weather.wetness;
   const programmes = Object.keys(PRACTICE_PROGRAMMES) as PracticeProgramme[];
   const entries: TimedEntry[] = DRIVERS.map((driver) => {
-    const isPlayer = driver.id === ctx.playerDriverId;
+    const isPlayer = isManaged(ctx, driver.id);
     const own = isPlayer ? spec : PRACTICE_PROGRAMMES[rng.pick(programmes)];
     const compound = wetness > dryWetness ? fastestCompoundFor(wetness, ['inter', 'wet']) : own.fuel < 0.5 ? 'soft' : rng.pick<CompoundId>(['soft', 'medium', 'hard']);
     const fuel = own.fuel + (isPlayer ? 0 : rng.range(-0.2, 0.5));
@@ -188,13 +200,13 @@ export function runPractice(
   ];
   if (wet) notes.push('A wet track limited useful dry running, so the team learned less.');
   const playerEntry = entries.find((e) => e.driverId === ctx.playerDriverId)!;
-  if (spec.fuel > 1) notes.push(`${getDriver(ctx.playerDriverId).code} ran heavy fuel, so the timesheet hides the real one-lap pace.`);
+  if (spec.fuel > 1) notes.push('Your cars ran heavy fuel, so the timesheet hides the real one-lap pace.');
   else if (playerEntry.time !== null) notes.push('Low-fuel running: this is close to the real one-lap pace.');
   return { result: { session, programme, wetness, entries: sortEntries(entries), notes }, prep };
 }
 
 export function prepLabel(area: keyof Preparation): string {
-  return { setup: 'setup', tyres: 'tyre knowledge', quali: 'qualifying preparation' }[area];
+  return { setup: 'setup knowledge', tyres: 'tyre knowledge', quali: 'qualifying preparation' }[area];
 }
 
 // ---------- Qualifying ----------
@@ -226,7 +238,7 @@ export function qualifyingWetness(weather: SessionWeather, rng: Rng): [number, n
 
 export function createQualifying(session: QualiSessionId, weather: SessionWeather, seed: number): QualifyingState {
   const rng = createRng(seed);
-  return { session, wetness: qualifyingWetness(weather, rng), segments: [], grid: null, savedSoftSets: 0 };
+  return { session, wetness: qualifyingWetness(weather, rng), segments: [], grid: null, savedSoftSets: {} };
 }
 
 /** The choice the team strategist would make (also used by the AI teams). */
@@ -282,27 +294,30 @@ export function qualifyingParticipants(state: QualifyingState): string[] {
  * Runs the next segment (Q1, Q2 or Q3). The player's choice is used when the player is still
  * in the session; afterwards the remaining segments can be run with `null`.
  */
-export function runQualifyingSegment(state: QualifyingState, ctx: SessionContext, playerChoice: QualiChoice | null): QualifyingState {
+export function runQualifyingSegment(state: QualifyingState, ctx: SessionContext, playerChoices: Record<string, QualiChoice> | null): QualifyingState {
   if (state.grid) return state;
   const index = (state.segments.length + 1) as 1 | 2 | 3;
   const rng = createRng(ctx.seed);
   const wetness = state.wetness[index - 1];
   const participants = qualifyingParticipants(state);
   const allowed = allowedCompounds(state.session, index, wetness);
-  let choice: QualiChoice | undefined;
+  const choices: Record<string, QualiChoice> = {};
   const entries = participants.map((id) => {
-    const isPlayer = id === ctx.playerDriverId;
-    let c = isPlayer && playerChoice ? playerChoice : aiChoice(state.session, index, wetness, id, rng);
+    const isPlayer = isManaged(ctx, id);
+    const given = isPlayer ? playerChoices?.[id] : undefined;
+    let c = given ?? (isPlayer ? suggestedQualiChoice(state.session, index, wetness) : aiChoice(state.session, index, wetness, id, rng));
     if (!allowed.includes(c.compound)) c = { ...c, compound: fastestCompoundFor(wetness, allowed) };
-    if (isPlayer) choice = c;
+    if (isPlayer) choices[id] = c;
     return runLap(ctx, id, c, wetness, index, rng);
   });
   const sorted = sortEntries(entries);
   const keep = index < 3 ? QUALI_CUTS[index - 1] : sorted.length;
   const eliminated = sorted.slice(keep).map((e) => e.driverId);
-  const segments = [...state.segments, { index, wetness, entries: sorted, eliminated, choice }];
-  let saved = state.savedSoftSets;
-  if (state.session === 'quali' && choice && choice.compound === 'medium' && wetness <= dryWetness && index < 3) saved = Math.min(2, saved + 1);
+  const segments = [...state.segments, { index, wetness, entries: sorted, eliminated, choices }];
+  const saved = { ...state.savedSoftSets };
+  if (state.session === 'quali' && wetness <= dryWetness && index < 3) {
+    for (const [id, c] of Object.entries(choices)) if (c.compound === 'medium' && !eliminated.includes(id)) saved[id] = Math.min(2, (saved[id] ?? 0) + 1);
+  }
   const next: QualifyingState = { ...state, segments, savedSoftSets: saved };
   if (index === 3) next.grid = qualifyingGrid(segments);
   return next;

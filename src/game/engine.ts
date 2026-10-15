@@ -42,6 +42,7 @@ import { CIRCUITS, getCircuit } from './data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER, isCompoundId } from './data/tyres';
 import { DRIVERS, getDriver, getTeam, isDriverId } from './data/teams';
 import { carPaceOffset, computeLapTime, safetyCarLapTime, wearSmoothness } from './lapTime';
+import { initialStats, statsPace, statsWear, type CarStats } from './manager/carStats';
 import { evaluateStrategies, planLabel, tracePlan } from './projection';
 import { createRng, normalizeSeed } from './rng';
 import { circuitWear, expectedWear, failureChance, fastestCompoundFor, suitabilityGap } from './tyreModel';
@@ -189,11 +190,15 @@ export function createRace(config: RaceConfig): RaceState {
   // little variation decides it.
   const effects = config.carEffects ?? {};
   const managed = new Set(managedDriverIds(config));
+  const statsOf = (teamId: string): CarStats => config.carStats?.[teamId] ?? initialStats(teamId);
   const quali = config.grid
     ? config.grid.map((id) => ({ driver: getDriver(id), isPlayer: managed.has(id) }))
     : DRIVERS.map((driver) => {
         const isPlayer = managed.has(driver.id);
-        const offset = carPaceOffset({ teamId: driver.teamId, driverId: driver.id, isPlayer, paceBonus: effects[driver.id]?.pace }, config.difficulty);
+        const offset = carPaceOffset(
+          { teamId: driver.teamId, driverId: driver.id, isPlayer, paceBonus: effects[driver.id]?.pace, carPace: statsPace(statsOf(driver.teamId), circuit) },
+          config.difficulty,
+        );
         return { driver, isPlayer, time: offset + rng.normal(0, 0.22) };
       }).sort((a, b) => a.time - b.time);
 
@@ -242,8 +247,11 @@ export function createRace(config: RaceConfig): RaceState {
       penaltyTime: 0,
     };
     const effect = effects[driver.id];
+    const stats = statsOf(team.id);
+    car.carPace = Math.round(statsPace(stats, circuit) * 1000) / 1000;
     if (effect?.pace) car.paceBonus = effect.pace;
-    if (effect?.wear && effect.wear !== 1) car.wearFactor = effect.wear;
+    const wear = (effect?.wear ?? 1) * statsWear(stats);
+    if (Math.abs(wear - 1) > 1e-6) car.wearFactor = Math.round(wear * 1000) / 1000;
     if (effect?.pit) car.pitBonus = effect.pit;
     if (effect?.failureRisk) car.failureRisk = effect.failureRisk;
     for (const [c, n] of Object.entries(effect?.extraSets ?? {})) {

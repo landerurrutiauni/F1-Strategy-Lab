@@ -1,25 +1,29 @@
 # F1 Strategy Lab
 
-A single-player race-strategy game that runs entirely in the browser. You are the strategist on the pit wall for one driver of the 2026 grid: choose the pace, the tyres and the moment to stop, read the weather radar, react to Safety Cars, and see how your calls compare with the best plan available at the time.
+A single-player Formula 1 management game that runs entirely in the browser. As **Team Principal** of a 2026 team you develop the car, run the factory, balance the budget against the cost cap, keep partners and the board happy, set up both cars in practice and make every pit-wall call on race day: the pace, the tyres and the moment to stop, with the weather radar and the Safety Car to react to.
 
-Play a single race, or a whole **2026 season**: pre-season testing in Bahrain, then all 23 rounds with practice, qualifying, Sprints and Grands Prix, and both championships.
+Play a whole **career season** (pre-season testing in Bahrain, then all 23 rounds with practice, qualifying, Sprints and Grands Prix over their real distances, and both championships), or a **quick race** with both cars of any team.
 
 > Unofficial fan-made game. Not affiliated with, endorsed by or connected to Formula 1, the FIA, Formula One Management or any team. No official logos or artwork are used; team, driver and circuit names are used only to describe the real season the game is inspired by.
 
 ## Features
 
-- **Quick race** on any of the 23 rounds of the 2026 calendar, with any of the 22 drivers (real teams, numbers and race engineers), 10, 15 or 20 laps, dry, variable or wet weather, three difficulty levels and optional event drills (early or late Safety Car, incoming storm, drying track).
-- **Season mode**:
-  - Pre-season testing at Sakhir: two three-day tests (11–13 and 18–20 February). Each day you choose a programme (aero mapping, race simulations, pit-stop practice, reliability mileage) that improves your car for the whole season.
-  - Standard weekends: Practice 1, 2 and 3, Qualifying, Grand Prix.
-  - Sprint weekends at the six 2026 Sprint venues (Shanghai, Miami, Montréal, Silverstone, Zandvoort, Singapore): Practice 1, Sprint Qualifying, Sprint, Qualifying, Grand Prix.
-  - Practice programmes (setup work, long runs, qualifying simulations) build weekend preparation; wet sessions teach less.
-  - Knock-out qualifying (six cars out in Q1 and Q2, top ten in Q3) with your tyre and run-plan choice per segment. Sprint Qualifying uses mediums in SQ1/SQ2 and softs in SQ3 when dry.
-  - Run Sprints and Grands Prix live on the pit wall, or let the team strategist simulate them.
-  - 2026 points (25-18-15-12-10-8-6-4-2-1 and 8-7-6-5-4-3-2-1, no fastest-lap point), drivers' and constructors' standings with countback, in-season upgrades, mechanical reliability, weekend weather forecasts and a season review.
-- **Live race**: after the start lights the race runs in real time. All 22 cars lap the real circuit at their own lap times (overtakes, pit-lane stops at the box, the Safety Car leading the pack, retirements), with pause, 1×–8× speed, a next-lap skip and automatic pauses for key moments. Your call for the next lap locks in when the leader starts it. Alongside: timing tower with animated position changes, tyre panel (wear gauge, useful life, pit window, wrong-tyre warning), strategy outlook (projected 0/1/2-stop plans, pit-now delta, rejoin estimate), five-lap weather radar, race control and team radio feed, telemetry charts, overtake boost, keyboard shortcuts.
+- **Team Principal career**:
+  - Pick any of the 11 teams of 2026 (real drivers, numbers and race engineers). The board sets a constructors' target from the car's pace; three (fictional) partners pay every race and add bonuses for objectives such as both cars in the points.
+  - **Car development**: five car ratings (low, medium and high-speed corners, straight-line speed, tyre care), weighted differently at every circuit. Design and build new parts (front wing, rear wing, floor, sidepods, suspension) over calendar weeks; gains vary, with diminishing returns. Rivals develop between rounds, faster on harder difficulty.
+  - **Cost cap** ($215M): parts, race operations and crash repairs count; the operating costs of the remaining weekends are set aside before any development money.
+  - **Factory**: wind tunnel, CFD cluster, factory, driver simulator and pit-crew training, levels 1–5, upgraded over weeks with money from the bank (outside the cap).
+  - **Finances and inbox**: ledger, partner payments, prize-fund instalments by constructors' position, salaries, bonuses; messages from the technical director, operations, the sporting director, partners and the board.
+  - Pre-season testing at Sakhir: two three-day tests (11–13 and 18–20 February). Each day you choose a programme (aero mapping, race simulations, pit-stop practice, reliability mileage) that helps for the whole season.
+  - Standard weekends: Practice 1, 2 and 3, Qualifying, Grand Prix. Sprint weekends at the six 2026 Sprint venues (Shanghai, Miami, Montréal, Silverstone, Zandvoort, Singapore): Practice 1, Sprint Qualifying, Sprint, Qualifying, Grand Prix.
+  - **Setup work** in practice: five settings per car; after each run each driver describes the car's behaviour, with feedback that gets sharper with setup work and a better simulator. Apply the engineers' proposal or tune by hand. Parc fermé from the first qualifying session.
+  - Knock-out qualifying (six cars out in Q1 and Q2, top ten in Q3) with a tyre and run plan for each of your cars in each segment. Sprint Qualifying uses mediums in SQ1/SQ2 and softs in SQ3 when dry.
+  - Run Sprints and Grands Prix live on the pit wall with both cars, or let the team strategist simulate them.
+  - 2026 points (25-18-15-12-10-8-6-4-2-1 and 8-7-6-5-4-3-2-1, no fastest-lap point), drivers' and constructors' standings with countback, mechanical reliability, weekend weather forecasts and a season review with the board's verdict.
+- **Quick race** on any of the 23 rounds of the 2026 calendar with both cars of any team, over the circuit's real race distance, dry, variable or wet weather, three difficulty levels and optional event drills (early or late Safety Car, incoming storm, drying track).
+- **Live race**: after the start lights the race runs in real time over the official distance. All 22 cars lap the real circuit at their own lap times (overtakes, pit-lane stops at the box, the Safety Car leading the pack, retirements), with pause, 4×–64× real-time speed, a next-lap skip and automatic pauses for key moments. Switch between your two cars to set each one's call; a call locks in when the leader starts the lap. Alongside: timing tower with animated position changes, tyre panel (wear gauge, useful life, pit window, wrong-tyre warning), strategy outlook (projected 0/1/2-stop plans, pit-now delta, rejoin estimate), five-lap weather radar, race control and team radio feed, telemetry charts, overtake boost, keyboard shortcuts.
 - **Results**: classification, gaps, pit stops, stint chart, telemetry, major events, an explainable strategy rating (pit calls, tyre management, weather calls, execution; luck reported separately), key decisions and a lap-by-lap summary.
-- **Records** and the season are stored in `localStorage` (versioned and validated). An unfinished race is saved every lap and can be resumed.
+- **Records** and the career are stored in `localStorage` (versioned and validated). An unfinished race is saved every lap and can be resumed.
 - Accessibility: keyboard play, visible focus, skip link, live announcements, reduced-motion setting (also follows the OS preference), colour never the only signal.
 
 ## Tech stack
@@ -33,7 +37,7 @@ npm ci            # install exactly what package-lock.json lists
 npm run dev       # http://localhost:5173
 ```
 
-Useful URL parameters for sharing a race or testing: `?seed=4242&circuit=monza&laps=10&driver=ver&tyre=soft&weather=variable&difficulty=hard&scenario=storm`.
+Useful URL parameters for sharing a quick race or testing: `?seed=4242&circuit=monza&team=redbull&tyre=soft&weather=variable&difficulty=hard&scenario=storm` (or `driver=ver` to choose the lead car).
 
 ## Scripts
 
@@ -63,10 +67,11 @@ src/
     rating.ts           strategy rating
     classification.ts   final classification and penalties
     persistence.ts      records and the race in progress
-    season/             season mode: calendar, testing, practice, qualifying, championship
+    manager/            career systems: car ratings, development and facilities, finances, setup
+    season/             career season: calendar, testing, practice, qualifying, championship
     data/               2026 teams, drivers, calendar, tyres, circuit outlines
   components/           UI components (timing tower, map, charts, panels)
-  screens/              Menu, briefing, race, results, info pages, season screens
+  screens/              Menu, briefing, race, results, info pages, career (HQ) screens
   hooks/                race controller, season controller, settings, sound
   styles/               design tokens and component styles
 e2e/                    Playwright tests
@@ -75,7 +80,7 @@ scripts/build-circuits.mjs   converts the circuit dataset into game outlines
 
 ## Simulation model
 
-**Live playback** (`src/game/replay.ts`, `src/hooks/useRacePlayback.ts`): the engine still works lap by lap, one lap ahead of what you see. When the leader starts a lap, that lap is computed for the whole field with your current call. Every car's lap records become a timeline, so the map can place each car at any moment: from its grid slot, at its own pace through the lap, down the pit lane with the stationary stop at its box, stopped on track after a retirement, and over the line at the flag. The timing tower and panels move on when the leader crosses the line, so nothing is revealed early. At 1× a lap takes about 12 seconds.
+**Live playback** (`src/game/replay.ts`, `src/hooks/useRacePlayback.ts`): the engine still works lap by lap, one lap ahead of what you see. When the leader starts a lap, that lap is computed for the whole field with your current call. Every car's lap records become a timeline, so the map can place each car at any moment: from its grid slot, at its own pace through the lap, down the pit lane with the stationary stop at its box, stopped on track after a retirement, and over the line at the flag. The timing tower and panels move on when the leader crosses the line, so nothing is revealed early. Speeds are multiples of real time: at 16× a 90-second lap takes about 6 seconds.
 
 All randomness comes from a seeded generator (mulberry32) whose state is stored in the race state, so **the same seed and the same decisions always give the same race**. `advanceLap(state, decision)` is pure: it clones the state, simulates one lap for all 22 cars and returns the new state. The constants below live in `src/game/constants.ts` and `src/game/data/tyres.ts`.
 
@@ -84,7 +89,7 @@ All randomness comes from a seeded generator (mulberry32) whose state is stored 
 ```
 lap = circuit base
     − 0.07 × (lap − 1)                 fuel burn
-    + team car pace + driver skill (+ difficulty adjustment for rivals, + season effects)
+    + car pace (from the car ratings and the circuit) + driver skill (+ difficulty adjustment for rivals, + setup and season effects)
     + compound offset                   soft 0, medium +0.45, hard +0.85
     + degradation(wear)                 (0.9·x + 3.4·x⁴) × compound sensitivity, x = wear/100
     + 8.5 × wetness + wrong-tyre penalty for the track wetness
@@ -93,9 +98,9 @@ lap = circuit base
     + driver-consistency noise
 ```
 
-**Tyre wear per lap** = compound base wear (soft 6.4%, medium 4.2%, hard 3.0%, …) × circuit degradation × pace multiplier (conserve 0.65, push 1.6) × track-temperature factor × wetness factor × driver smoothness × season effects. Above 85% wear the chance of a failure ramps up (a failure costs about 24 s and forces a stop).
+**Tyre wear per lap** = compound base wear (soft 3.9%, medium 2.6%, hard 1.8%, inter 2.4%, wet 2.0%) × circuit degradation × lap length (relative to 5.3 km) × pace multiplier (conserve 0.65, push 1.6) × track-temperature factor × wetness factor × driver smoothness × the car's tyre-care rating × season effects. Above 85% wear the chance of a failure ramps up (a failure costs about 24 s and forces a stop).
 
-**Weather**: a per-race rain timeline drives track wetness (wets at 0.65 × rain per lap, dries at 0.28 per lap). The radar shows five laps ahead with uncertainty that grows with distance; beyond that it shows a climate estimate.
+**Weather**: a per-race rain timeline drives track wetness (wets at 0.45 × rain per lap, dries at 0.1 per lap). The radar shows five laps ahead with uncertainty that grows with distance; beyond that it shows a climate estimate.
 
 **Pit stops**: pit-lane loss of the circuit (about 18–25 s) plus a stationary time of 2.6 ± 0.2 s, with 7% slow stops and 7% quick ones. Under the Safety Car the lane loss is halved. In a dry Grand Prix two different dry compounds are compulsory (40 s penalty otherwise); Sprints have no such rule.
 
@@ -109,14 +114,18 @@ lap = circuit base
 
 **Strategy rating**: pit calls 40% (time lost against the best plan available when each call was made), tyre management 25%, weather calls 20%, execution 15%. Luck (Safety Car timing, failures) is reported separately and does not change the score.
 
-### Season model
+### Career model
 
+- **Car ratings**: each rating point is worth 0.03 s per lap at full weight; a circuit spreads its weight over the four performance ratings (Monaco 70% low-speed corners, Monza 60% straight-line speed, Silverstone 55% high-speed corners and so on). Tyre care changes wear by 0.4% per point. Starting ratings follow each team's 2026 pace with its own character.
+- **Parts**: front wing 21 days / $4M, rear wing 21 / $4M, floor 35 / $8M, sidepods 28 / $6M, suspension 28 / $5M at level-3 facilities. CFD and the factory shorten the time; the wind tunnel and CFD raise the gain. About one part in ten fails to correlate. Gains shrink as a rating approaches the top.
+- **Facilities**: an upgrade to the next level costs $5M + $4M × level and takes 14 + 7 × level days. The factory allows 1 + ⌈level / 2⌉ projects at once; the simulator sets the starting setup knowledge (10% + 6% × level) and the quality of the baseline setup; pit-crew training changes the stationary time by 0.12 s per level from level 3.
+- **Money** (illustrative, $M): starting balance 40–60, partners 7–9.5 per race, prize-fund instalments from 1.7 to 6.1 per race by constructors' position, operations 5.5 per weekend (+1 on Sprint weekends), salaries 1–3 per race, crash repairs 1.8.
+- **Setup**: every circuit and driver has a hidden ideal for five settings. Quality is 1 − (average miss / 40); pace ranges from +0.35 s (poor) to −0.25 s (perfect) per lap. Rival setups land between 66% and 90% quality. Feedback noise shrinks with setup knowledge; a wet session halves what the drivers can tell you.
 - **Testing**: each day closes about a third of the remaining gap in one area. Effects for the season: up to −0.25 s per lap (pace), −12% tyre wear, −0.45 s per stop, and lower mechanical-failure risk. Rival teams get their own pre-season development.
-- **Practice**: up to −0.18 s per lap from setup, −8% tyre wear from long runs and −0.12 s on a qualifying lap from qualifying simulations, for that weekend only.
+- **Practice**: long runs give up to −8% tyre wear and qualifying simulations up to −0.12 s on a qualifying lap, for that weekend only.
 - **Qualifying**: one flying lap per run with low fuel, track evolution (Q2 −0.15 s, Q3 −0.3 s), tyre and wetness effects, noise, traffic (one late run) and mistakes or deleted laps (more likely in the wet and on riskier plans).
-- **Reliability**: in season races each car has a small per-lap chance of a mechanical retirement, from the team's reliability and its testing mileage.
-- **In-season development**: after every round each team's form drifts a little; big steps are reported as upgrades that worked or failed.
-- **Sprints** are about half the Grand Prix distance (5, 8 or 10 laps).
+- **Reliability**: in career races each car has a small per-lap chance of a mechanical retirement, from the team's reliability and its testing mileage.
+- **Race distances**: every Grand Prix and Sprint runs its official number of laps (for example Monaco 78, Spa 44, the Silverstone Sprint 17).
 
 All performance values (team pace, driver ratings, circuit characteristics, reliability) are illustrative numbers chosen for gameplay, not official or measured data.
 
@@ -143,8 +152,9 @@ One-time setup (needs a repository admin; a workflow token is not allowed to swi
 - The model is deliberately simplified: no fuel-saving modes, no blue flags, no virtual Safety Car or red flags, no penalties other than the compound rule, and no damage from contact.
 - Strategy projections ignore traffic and future Safety Cars, and the weather may not follow the radar.
 - Car and driver ratings are illustrative and do not track real form.
-- Races are compressed to 10–20 laps, so stints and gaps are shorter than in reality.
-- Progress lives in this browser's `localStorage`; clearing site data removes records and the season.
+- The career covers one season: no driver market, contracts, staff hiring or regulation changes.
+- Partner names are fictional and all money figures are illustrative.
+- Progress lives in this browser's `localStorage`; clearing site data removes records and the career.
 
 ## Credits
 

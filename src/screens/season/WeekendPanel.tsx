@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bot, Check, Flag, Gauge, Play, Timer } from 'lucide-react';
+import { Bot, Check, Flag, Gauge, Lock, Play, SlidersHorizontal, Timer, Wand2 } from 'lucide-react';
 import { CircuitMap } from '../../components/CircuitMap';
 import { Panel } from '../../components/Panel';
 import { Segmented } from '../../components/Segmented';
@@ -9,24 +9,30 @@ import { Meter, ResultTable, Timesheet } from '../../components/season/SeasonTab
 import { getCircuit } from '../../game/data/circuits';
 import { COMPOUNDS, COMPOUND_ORDER } from '../../game/data/tyres';
 import { getDriver, getTeam } from '../../game/data/teams';
-import { createRace, getPlayerCar } from '../../game/engine';
+import { createRace, getManagedCars } from '../../game/engine';
 import { formatDelta, formatLapTime } from '../../game/format';
+import { SETUP_INFO, SETUP_PARAMS, feedbackText, type SetupParam } from '../../game/manager/setup';
 import { evaluateStrategies, planLabel } from '../../game/projection';
 import { SESSION_INFO, WEATHER_LABEL, segmentName } from '../../game/season/calendar';
 import {
+  changeSetup,
   completeQualifying,
   currentSession,
+  engineerProposal,
   ensureQualifying,
   gridFor,
-  playerInQualifying,
+  managedDrivers,
+  managedInQualifying,
   raceConfigFor,
+  raceLaps,
   recordRace,
   runPracticeSession,
   runQualifying,
+  setupLocked,
   simulateWithStrategist,
 } from '../../game/season/season';
 import { PRACTICE_PROGRAMMES, QUALI_CUTS, QUALI_PLANS, allowedCompounds, preparationEffects, suggestedQualiChoice } from '../../game/season/sessions';
-import type { PracticeProgramme, QualiPlan, QualiSessionId, QualifyingState, SeasonState, SessionId, SessionWeather } from '../../game/season/types';
+import type { PracticeProgramme, QualiChoice, QualiPlan, QualiSessionId, QualifyingState, SeasonState, SessionId, SessionWeather } from '../../game/season/types';
 import { compoundPace, fastestCompoundFor } from '../../game/tyreModel';
 import type { CompoundId, RaceConfig } from '../../game/types';
 import { describeScenarioForecast } from '../../game/weather';
@@ -49,6 +55,8 @@ export function WeekendPanel({ season, controller, onStartRace, resumeLap }: Wee
   const prepRace = preparationEffects(weekend.prep, 'race');
   const prepQuali = preparationEffects(weekend.prep, 'quali');
   const lastDone = weekend.next > 0 ? weekend.sessions[weekend.next - 1] : null;
+  const ids = managedDrivers(season);
+  const locked = setupLocked(season);
 
   return (
     <div className="season-main">
@@ -101,11 +109,27 @@ export function WeekendPanel({ season, controller, onStartRace, resumeLap }: Wee
 
         <Panel title="Weekend preparation" icon={<Gauge size={16} />}>
           <div className="meters">
-            <Meter label="Setup" value={weekend.prep.setup} effect={`${formatDelta(prepRace.pace, 2)} per lap in qualifying and races`} />
+            {ids.map((id) => {
+              const fb = weekend.setups[id]?.feedback;
+              return (
+                <Meter
+                  key={id}
+                  label={`${getDriver(id).name}: setup confidence`}
+                  value={fb ? fb.confidence : 0}
+                  effect={fb ? 'Engineers’ estimate from the last run' : 'Unknown until the car runs in practice'}
+                />
+              );
+            })}
+            <Meter label="Setup knowledge" value={weekend.prep.setup} effect="How clearly the drivers’ feedback points to the ideal setup" />
             <Meter label="Tyre knowledge" value={weekend.prep.tyres} effect={`${Math.round((1 - prepRace.wear) * 100)}% less tyre wear in races`} />
-            <Meter label="Qualifying preparation" value={weekend.prep.quali} effect={`${formatDelta(prepQuali.pace - prepRace.pace, 2)} extra on a qualifying lap`} />
+            <Meter label="Qualifying preparation" value={weekend.prep.quali} effect={`${formatDelta(prepQuali.pace, 2)} on a qualifying lap`} />
           </div>
-          <p className="field__help">Practice sessions build these up. {circuit.sprint ? 'Sprint weekends have only one practice session, so choose carefully.' : ''}</p>
+          <p className="field__help">
+            {locked
+              ? 'Parc fermé: the setups are locked until the end of the weekend.'
+              : `Practice builds these up. Setups lock (parc fermé) when ${circuit.sprint ? 'Sprint Qualifying' : 'qualifying'} begins.`}
+            {circuit.sprint ? ' Sprint weekends have only one practice session, so choose carefully.' : ''}
+          </p>
         </Panel>
       </div>
 
@@ -114,38 +138,127 @@ export function WeekendPanel({ season, controller, onStartRace, resumeLap }: Wee
   );
 }
 
+// ---------- Practice and setup ----------
+
 function PracticeView({ season, controller, session }: { season: SeasonState; controller: SeasonController; session: 'fp1' | 'fp2' | 'fp3' }) {
   const [programme, setProgramme] = useState<PracticeProgramme>('setup');
   const weather = season.weekend!.weather[session]!;
   return (
-    <Panel title={`${SESSION_INFO[session].name}: run plan`} icon={<Timer size={16} />}>
-      <p className="session-weather">
-        <WeatherIcon {...weatherIconProps(weather)} /> {WEATHER_LABEL[weather.scenario]}
-        {weather.wetness > 0.35 ? ': a wet track limits useful dry running.' : '.'}
+    <>
+      <Panel title={`${SESSION_INFO[session].name}: run plan`} icon={<Timer size={16} />}>
+        <p className="session-weather">
+          <WeatherIcon {...weatherIconProps(weather)} /> {WEATHER_LABEL[weather.scenario]}
+          {weather.wetness > 0.35 ? ': a wet track limits useful dry running and setup feedback.' : '.'}
+        </p>
+        <Segmented<PracticeProgramme>
+          legend="Programme"
+          hideLegend
+          layout="grid"
+          value={programme}
+          onChange={setProgramme}
+          options={(Object.keys(PRACTICE_PROGRAMMES) as PracticeProgramme[]).map((id) => ({ value: id, label: PRACTICE_PROGRAMMES[id].name, hint: PRACTICE_PROGRAMMES[id].detail }))}
+        />
+        <div className="season-actions">
+          <button type="button" className="btn btn--primary" onClick={() => controller.update((s) => runPracticeSession(s, programme))}>
+            <Play size={16} aria-hidden="true" />
+            <span className="btn__label">Run {SESSION_INFO[session].short}</span>
+          </button>
+        </div>
+      </Panel>
+      <SetupWorkshop season={season} controller={controller} />
+    </>
+  );
+}
+
+/** Setup sliders for both cars, with each driver's feedback from the last run. */
+function SetupWorkshop({ season, controller }: { season: SeasonState; controller: SeasonController }) {
+  const weekend = season.weekend!;
+  const ids = managedDrivers(season);
+  const locked = setupLocked(season);
+  return (
+    <Panel title="Car setup" icon={<SlidersHorizontal size={16} />} aside={locked ? <span className="tag"><Lock size={12} aria-hidden="true" /> Parc fermé</span> : undefined}>
+      <p className="field__help">
+        Each driver reports what the car does after every practice run. Move the settings towards their feedback, or let the engineers propose a change. The
+        closer to the ideal, the more pace in qualifying and the races (up to about half a second a lap between a poor and a perfect setup).
       </p>
-      <Segmented<PracticeProgramme>
-        legend="Programme"
-        hideLegend
-        layout="grid"
-        value={programme}
-        onChange={setProgramme}
-        options={(Object.keys(PRACTICE_PROGRAMMES) as PracticeProgramme[]).map((id) => ({ value: id, label: PRACTICE_PROGRAMMES[id].name, hint: PRACTICE_PROGRAMMES[id].detail }))}
-      />
-      <div className="season-actions">
-        <button type="button" className="btn btn--primary" onClick={() => controller.update((s) => runPracticeSession(s, programme))}>
-          <Play size={16} aria-hidden="true" />
-          <span className="btn__label">Run {SESSION_INFO[session].short}</span>
-        </button>
+      <div className="setup-cars">
+        {ids.map((id) => {
+          const setup = weekend.setups[id];
+          if (!setup) return null;
+          const driver = getDriver(id);
+          const proposal = engineerProposal(season, id);
+          return (
+            <section key={id} className="setup-car" aria-label={`${driver.name} setup`} style={{ '--team': getTeam(driver.teamId).color } as React.CSSProperties}>
+              <h3 className="setup-car__title">
+                #{driver.number} {driver.name}
+                {setup.feedback && <span className="muted"> · confidence {Math.round(setup.feedback.confidence * 100)}%</span>}
+              </h3>
+              {SETUP_PARAMS.map((param: SetupParam) => {
+                const info = SETUP_INFO[param];
+                const reading = setup.feedback?.readings[param];
+                const inputId = `setup-${id}-${param}`;
+                return (
+                  <div key={param} className="setup-row">
+                    <label className="setup-row__label" htmlFor={inputId}>
+                      {info.name}
+                      <span className="num">{setup.values[param]}</span>
+                    </label>
+                    <input
+                      id={inputId}
+                      className="setup-row__range"
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={setup.values[param]}
+                      disabled={locked}
+                      aria-label={`${driver.name} ${info.name.toLowerCase()}`}
+                      aria-valuetext={`${setup.values[param]} (${info.low} to ${info.high})`}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        controller.update((s) => changeSetup(s, id, { [param]: value }));
+                      }}
+                    />
+                    <span className="setup-row__ends muted" aria-hidden="true">
+                      <span>{info.low}</span>
+                      <span>{info.high}</span>
+                    </span>
+                    {reading !== undefined && (
+                      <p className={`setup-row__feedback${Math.abs(reading) < 0.12 ? ' is-good' : ''}`}>
+                        {feedbackText(param, reading)}
+                        {setup.tested && setup.tested[param] !== setup.values[param] && <span className="muted"> (at {setup.tested[param]})</span>}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="season-actions">
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--small"
+                  disabled={locked || !proposal}
+                  onClick={() => proposal && controller.update((s) => changeSetup(s, id, proposal))}
+                >
+                  <Wand2 size={14} aria-hidden="true" /> {`Apply the engineers’ proposal for ${driver.code}`}
+                </button>
+                {!setup.feedback && <span className="muted">Run a practice session to get feedback.</span>}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </Panel>
   );
 }
 
+// ---------- Qualifying ----------
+
 function QualifyingView({ season, controller, session }: { season: SeasonState; controller: SeasonController; session: QualiSessionId }) {
   const q = season.weekend!.qualifying[session];
+  const { update } = controller;
   useEffect(() => {
-    if (!q) controller.update(ensureQualifying);
-  }, [q, controller]);
+    if (!q) update(ensureQualifying);
+  }, [q, update]);
   if (!q) return null;
   // A fresh form for every segment, so the default tyre always suits that segment's track.
   return <QualifyingSegment key={`${session}-${q.segments.length}`} season={season} controller={controller} session={session} q={q} />;
@@ -156,52 +269,74 @@ function QualifyingSegment({ season, controller, session, q }: { season: SeasonS
   const wetness = q.wetness[index - 1] ?? 0;
   const allowed = allowedCompounds(session, index, wetness);
   const suggested = suggestedQualiChoice(session, index, wetness);
-  const [compound, setCompound] = useState<CompoundId>(suggested.compound);
-  const [plan, setPlan] = useState<QualiPlan>('standard');
-  const chosen = allowed.includes(compound) ? compound : suggested.compound;
-  const stillIn = playerInQualifying(season, session);
+  const stillIn = managedInQualifying(season, session);
+  const ids = managedDrivers(season);
+  const [choices, setChoices] = useState<Record<string, QualiChoice>>(() => Object.fromEntries(stillIn.map((id) => [id, { ...suggested }])));
   const last = q.segments[q.segments.length - 1];
-  const player = season.config.playerDriverId;
   const fastest = fastestCompoundFor(wetness, allowed);
+  const set = (id: string, patch: Partial<QualiChoice>) => setChoices((c) => ({ ...c, [id]: { ...(c[id] ?? suggested), ...patch } }));
+  const legal = Object.fromEntries(stillIn.map((id) => [id, { ...choices[id], compound: allowed.includes(choices[id]?.compound) ? choices[id].compound : suggested.compound }]));
 
   return (
-    <Panel title={`${SESSION_INFO[session].name}: ${stillIn ? segmentName(session, index) : 'knocked out'}`} icon={<Timer size={16} />}>
-      {stillIn ? (
+    <Panel title={`${SESSION_INFO[session].name}: ${stillIn.length ? segmentName(session, index) : 'both cars out'}`} icon={<Timer size={16} />}>
+      {stillIn.length > 0 ? (
         <>
           <p className="session-weather">
             <WeatherIcon {...weatherIconProps({ scenario: wetness > 0.4 ? 'rainy' : wetness > 0 ? 'variable' : 'dry', wetness })} />{' '}
             {wetness <= 0.02 ? 'Dry track.' : `Track ${Math.round(wetness * 100)}% wet: ${COMPOUNDS[fastest].name} is the quickest tyre.`}{' '}
             {index < 3 ? `The slowest six are knocked out; the top ${QUALI_CUTS[index - 1]} go through.` : 'Top ten shoot-out for pole.'}
           </p>
-          <fieldset className="field">
-            <legend className="field__label">Tyre for {segmentName(session, index)}</legend>
-            <div className="compounds__grid">
-              {allowed.map((id) => {
-                const delta = compoundPace(id, wetness) - compoundPace(fastest, wetness);
-                return (
-                  <label key={id} className={`compound${chosen === id ? ' is-checked' : ''}`}>
-                    <input type="radio" name="quali-compound" value={id} checked={chosen === id} onChange={() => setCompound(id)} />
-                    <TyreBadge compound={id} size={24} />
-                    <span className="compound__name">{COMPOUNDS[id].name}</span>
-                    <span className={`compound__delta${delta < 0.05 ? ' is-best' : ''}`}>{delta < 0.05 ? 'Quickest' : formatDelta(delta, 2)}</span>
-                  </label>
-                );
-              })}
-            </div>
-            {session === 'sprint-quali' && wetness <= 0.15 && <p className="field__help">Sprint Qualifying rules: mediums in SQ1 and SQ2, softs in SQ3.</p>}
-            {session === 'quali' && index < 3 && wetness <= 0.15 && (
-              <p className="field__help">Getting through on mediums saves a new set of softs for the Grand Prix ({q.savedSoftSets}/2 saved so far).</p>
-            )}
-          </fieldset>
-          <Segmented<QualiPlan>
-            legend="Run plan"
-            layout="grid"
-            value={plan}
-            onChange={setPlan}
-            options={(Object.keys(QUALI_PLANS) as QualiPlan[]).map((id) => ({ value: id, label: QUALI_PLANS[id].name, hint: QUALI_PLANS[id].detail }))}
-          />
+          {ids
+            .filter((id) => !stillIn.includes(id))
+            .map((id) => (
+              <p key={id} className="muted">
+                {getDriver(id).name} is out and starts P{gridSlot(q, id)}.
+              </p>
+            ))}
+          <div className="quali-cars">
+            {stillIn.map((id) => {
+              const driver = getDriver(id);
+              const choice = legal[id];
+              return (
+                <section key={id} className="quali-car" aria-label={`${driver.name} plan`} style={{ '--team': getTeam(driver.teamId).color } as React.CSSProperties}>
+                  <h3 className="setup-car__title">
+                    #{driver.number} {driver.name}
+                  </h3>
+                  <fieldset className="field">
+                    <legend className="field__label">
+                      Tyre for {driver.code} in {segmentName(session, index)}
+                    </legend>
+                    <div className="compounds__grid">
+                      {allowed.map((compound) => {
+                        const delta = compoundPace(compound, wetness) - compoundPace(fastest, wetness);
+                        return (
+                          <label key={compound} className={`compound${choice.compound === compound ? ' is-checked' : ''}`}>
+                            <input type="radio" name={`quali-compound-${id}`} value={compound} checked={choice.compound === compound} onChange={() => set(id, { compound })} />
+                            <TyreBadge compound={compound} size={24} />
+                            <span className="compound__name">{COMPOUNDS[compound].name}</span>
+                            <span className={`compound__delta${delta < 0.05 ? ' is-best' : ''}`}>{delta < 0.05 ? 'Quickest' : formatDelta(delta, 2)}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                  <Segmented<QualiPlan>
+                    legend={`Run plan for ${driver.code}`}
+                    layout="grid"
+                    value={choice.plan}
+                    onChange={(plan) => set(id, { plan })}
+                    options={(Object.keys(QUALI_PLANS) as QualiPlan[]).map((p) => ({ value: p, label: QUALI_PLANS[p].name, hint: QUALI_PLANS[p].detail }))}
+                  />
+                  {session === 'quali' && index < 3 && wetness <= 0.15 && (
+                    <p className="field__help">Through on mediums saves a new set of softs for the Grand Prix ({q.savedSoftSets[id] ?? 0}/2 saved).</p>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+          {session === 'sprint-quali' && wetness <= 0.15 && <p className="field__help">Sprint Qualifying rules: mediums in SQ1 and SQ2, softs in SQ3.</p>}
           <div className="season-actions">
-            <button type="button" className="btn btn--primary" onClick={() => controller.update((s) => runQualifying(s, { compound: chosen, plan }))}>
+            <button type="button" className="btn btn--primary" onClick={() => controller.update((s) => runQualifying(s, legal))}>
               <Play size={16} aria-hidden="true" />
               <span className="btn__label">Run {segmentName(session, index)}</span>
             </button>
@@ -210,8 +345,7 @@ function QualifyingSegment({ season, controller, session, q }: { season: SeasonS
       ) : (
         <div className="season-actions">
           <p>
-            {getDriver(player).name} is out in {segmentName(session, q.segments.findIndex((s) => s.eliminated.includes(player)) + 1)} and will start P
-            {(last?.entries.findIndex((e) => e.driverId === player) ?? 0) + 1}.
+            {ids.map((id) => `${getDriver(id).name} starts P${gridSlot(q, id)}`).join(', ')}. The rest of the session runs without your cars.
           </p>
           <button type="button" className="btn btn--primary" onClick={() => controller.update(completeQualifying)}>
             <Play size={16} aria-hidden="true" />
@@ -224,7 +358,7 @@ function QualifyingSegment({ season, controller, session, q }: { season: SeasonS
           <h3 className="segment-result__title">{segmentName(session, last.index)} times</h3>
           <Timesheet
             entries={last.entries}
-            playerDriverId={player}
+            playerDriverId={ids}
             caption={`${segmentName(session, last.index)} classification`}
             cutAfter={last.index < 3 ? QUALI_CUTS[last.index - 1] : undefined}
           />
@@ -233,6 +367,15 @@ function QualifyingSegment({ season, controller, session, q }: { season: SeasonS
     </Panel>
   );
 }
+
+/** Grid slot of a driver knocked out in an earlier segment. */
+function gridSlot(q: QualifyingState, id: string): number {
+  const seg = q.segments.find((s) => s.eliminated.includes(id));
+  if (!seg) return 0;
+  return seg.entries.findIndex((e) => e.driverId === id) + 1;
+}
+
+// ---------- Sprint and Grand Prix ----------
 
 function RaceStartView({
   season,
@@ -249,26 +392,30 @@ function RaceStartView({
 }) {
   const weekend = season.weekend!;
   const circuit = getCircuit(weekend.circuitId);
-  const grid = gridFor(season, session) ?? [];
-  const player = season.config.playerDriverId;
-  const gridPos = grid.indexOf(player) + 1;
+  const grid = useMemo(() => gridFor(season, session) ?? [], [season, session]);
+  const ids = managedDrivers(season);
   const weather = weekend.weather[session]!;
-  const laps = session === 'sprint' ? circuit.sprintLaps ?? 0 : circuit.laps;
+  const laps = raceLaps(weekend.circuitId, session);
 
-  // Same pre-race analysis as the quick-race briefing: projected race time for each start tyre.
-  const options = useMemo(() => {
-    return COMPOUND_ORDER.map((compound) => {
+  // Same pre-race analysis as the quick-race briefing: projected race time for each start tyre and car.
+  const estimates = useMemo(() => {
+    const out: Record<string, Array<{ compound: CompoundId; total: number; plan: string }>> = Object.fromEntries(ids.map((id) => [id, []]));
+    for (const compound of COMPOUND_ORDER) {
       const config = raceConfigFor(season, compound);
-      if (!config) return { compound, total: Infinity, plan: '' };
+      if (!config) continue;
       const race = createRace(config);
-      const outlook = evaluateStrategies(race, getPlayerCar(race).id);
-      return { compound, total: outlook?.best.totalTime ?? Infinity, plan: outlook ? planLabel(outlook.best.stops) : '' };
-    }).sort((a, b) => a.total - b.total);
-  }, [season]);
-  const [start, setStart] = useState<CompoundId>(() => options[0]?.compound ?? 'medium');
-  const best = options[0];
-  const chosen = options.find((o) => o.compound === start);
-  const config = raceConfigFor(season, start);
+      for (const car of getManagedCars(race)) {
+        const outlook = evaluateStrategies(race, car.id);
+        out[car.driverId]?.push({ compound, total: outlook?.best.totalTime ?? Infinity, plan: outlook ? planLabel(outlook.best.stops) : '' });
+      }
+    }
+    for (const id of ids) out[id].sort((a, b) => a.total - b.total);
+    return out;
+    // Estimates depend only on the weekend and the car, not on the tyre picks below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [season.weekend, season.carStats]);
+  const [starts, setStarts] = useState<Record<string, CompoundId>>(() => Object.fromEntries(ids.map((id) => [id, estimates[id]?.[0]?.compound ?? 'medium'])));
+  const config = raceConfigFor(season, starts);
 
   return (
     <Panel title={`${session === 'sprint' ? 'Sprint' : 'Grand Prix'}: ${laps} laps`} icon={<Flag size={16} />}>
@@ -276,32 +423,58 @@ function RaceStartView({
         <WeatherIcon {...weatherIconProps(weather)} /> {describeScenarioForecast(weather.scenario, circuit)}
       </p>
       <p>
-        <strong>{getDriver(player).name}</strong> starts <strong>P{gridPos}</strong> of {grid.length}.{' '}
+        {ids.map((id, i) => (
+          <span key={id}>
+            {i > 0 && ' and '}
+            <strong>{getDriver(id).name}</strong> starts <strong>P{grid.indexOf(id) + 1}</strong>
+          </span>
+        ))}{' '}
+        of {grid.length}.{' '}
         {session === 'sprint'
           ? 'No compulsory pit stop in the Sprint; points for the top eight (8 to 1).'
           : 'Two dry compounds are compulsory in a dry race; points for the top ten (25 to 1).'}
       </p>
-      <fieldset className="field">
-        <legend className="field__label">Starting tyre</legend>
-        <div className="compounds__grid compounds__grid--start">
-          {COMPOUND_ORDER.map((id) => {
-            const o = options.find((x) => x.compound === id);
-            const delta = o && best ? o.total - best.total : null;
-            return (
-              <label key={id} className={`compound${start === id ? ' is-checked' : ''}`}>
-                <input type="radio" name="season-start" value={id} checked={start === id} onChange={() => setStart(id)} />
-                <TyreBadge compound={id} size={24} />
-                <span className="compound__name">{COMPOUNDS[id].name}</span>
-                {delta !== null && Number.isFinite(delta) && (
-                  <span className={`compound__delta${delta < 0.05 ? ' is-best' : ''}`}>{delta < 0.05 ? 'Best est.' : formatDelta(delta)}</span>
-                )}
-              </label>
-            );
-          })}
-        </div>
-        {resumeLap && <p className="field__help">This race is already under way, so the tyre you started on stays.</p>}
-        {chosen && <p className="field__help">Estimated plan from the {COMPOUNDS[start].name}: {chosen.plan.toLowerCase()} (an estimate before traffic and Safety Cars).</p>}
-      </fieldset>
+      <div className="quali-cars">
+        {ids.map((id) => {
+          const driver = getDriver(id);
+          const options = estimates[id] ?? [];
+          const best = options[0];
+          const chosen = options.find((o) => o.compound === starts[id]);
+          return (
+            <fieldset key={id} className="field">
+              <legend className="field__label">Starting tyre for {driver.name}</legend>
+              <div className="compounds__grid compounds__grid--start">
+                {COMPOUND_ORDER.map((compound) => {
+                  const o = options.find((x) => x.compound === compound);
+                  const delta = o && best ? o.total - best.total : null;
+                  return (
+                    <label key={compound} className={`compound${starts[id] === compound ? ' is-checked' : ''}`}>
+                      <input
+                        type="radio"
+                        name={`season-start-${id}`}
+                        value={compound}
+                        checked={starts[id] === compound}
+                        onChange={() => setStarts((s) => ({ ...s, [id]: compound }))}
+                      />
+                      <TyreBadge compound={compound} size={24} />
+                      <span className="compound__name">{COMPOUNDS[compound].name}</span>
+                      {delta !== null && Number.isFinite(delta) && (
+                        <span className={`compound__delta${delta < 0.05 ? ' is-best' : ''}`}>{delta < 0.05 ? 'Best est.' : formatDelta(delta)}</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+              {chosen && (
+                <p className="field__help">
+                  {driver.code} from the {COMPOUNDS[starts[id]].name}: {chosen.plan.toLowerCase()} (an estimate before traffic and Safety Cars).
+                </p>
+              )}
+            </fieldset>
+          );
+        })}
+      </div>
+      {resumeLap && <p className="field__help">This race is already under way, so the tyres your cars started on stay.</p>}
       <div className="season-actions">
         <button type="button" className="btn btn--primary btn--xl" disabled={!config} onClick={() => config && onStartRace(config)}>
           <Play size={18} aria-hidden="true" />
@@ -320,7 +493,7 @@ function RaceStartView({
         <summary>Starting grid</summary>
         <ol className="grid-list">
           {grid.map((id, i) => (
-            <li key={id} className={id === player ? 'is-player' : undefined}>
+            <li key={id} className={ids.includes(id) ? 'is-player' : undefined}>
               <span className="num">{i + 1}</span> {getDriver(id).name}
             </li>
           ))}
@@ -333,7 +506,7 @@ function RaceStartView({
 /** Result of the latest finished session of the weekend. */
 function SessionResult({ season, session }: { season: SeasonState; session: SessionId }) {
   const weekend = season.weekend!;
-  const player = season.config.playerDriverId;
+  const ids = managedDrivers(season);
   if (session === 'fp1' || session === 'fp2' || session === 'fp3') {
     const result = weekend.practice.find((p) => p.session === session);
     if (!result) return null;
@@ -344,7 +517,7 @@ function SessionResult({ season, session }: { season: SeasonState; session: Sess
             <li key={n}>{n}</li>
           ))}
         </ul>
-        <Timesheet entries={result.entries} playerDriverId={player} caption={`${SESSION_INFO[session].name} classification`} showLaps />
+        <Timesheet entries={result.entries} playerDriverId={ids} caption={`${SESSION_INFO[session].name} classification`} showLaps />
       </Panel>
     );
   }
@@ -353,7 +526,7 @@ function SessionResult({ season, session }: { season: SeasonState; session: Sess
     if (!q?.grid) return null;
     return (
       <Panel title={`${SESSION_INFO[session].name} result`}>
-        <QualiResultTable q={q} playerDriverId={player} />
+        <QualiResultTable q={q} playerDriverIds={ids} />
       </Panel>
     );
   }
@@ -361,12 +534,12 @@ function SessionResult({ season, session }: { season: SeasonState; session: Sess
   if (!result) return null;
   return (
     <Panel title={`${SESSION_INFO[session].name} result${result.simulated ? ' (run by the strategist)' : ''}`}>
-      <ResultTable result={result} playerDriverId={player} caption={`${SESSION_INFO[session].name} classification`} />
+      <ResultTable result={result} playerDriverId={ids} caption={`${SESSION_INFO[session].name} classification`} />
     </Panel>
   );
 }
 
-export function QualiResultTable({ q, playerDriverId }: { q: QualifyingState; playerDriverId: string }) {
+export function QualiResultTable({ q, playerDriverIds }: { q: QualifyingState; playerDriverIds: string[] }) {
   const timeIn = (seg: number, id: string) => q.segments[seg]?.entries.find((e) => e.driverId === id)?.time;
   return (
     <div className="table-scroll">
@@ -385,7 +558,7 @@ export function QualiResultTable({ q, playerDriverId }: { q: QualifyingState; pl
         </thead>
         <tbody>
           {(q.grid ?? []).map((id, i) => (
-            <tr key={id} className={`${id === playerDriverId ? 'is-player' : ''}${i + 1 === 10 || i + 1 === 16 ? ' is-cut' : ''}`}>
+            <tr key={id} className={`${playerDriverIds.includes(id) ? 'is-player' : ''}${i + 1 === 10 || i + 1 === 16 ? ' is-cut' : ''}`}>
               <td>{i + 1}</td>
               <td>
                 <span className="team-dot" style={{ background: getTeam(getDriver(id).teamId).color }} aria-hidden="true" /> {getDriver(id).name}

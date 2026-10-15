@@ -29,7 +29,7 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
   await expect(page.getByRole('heading', { level: 1, name: /F1 Strategy Lab/i })).toBeVisible();
 
   // Briefing: circuit, team (both cars), distance, weather, tyres and the Safety Car drill.
-  await page.getByRole('button', { name: 'New race' }).click();
+  await page.getByRole('button', { name: /^Quick race/ }).click();
   await expect(page.getByRole('heading', { name: 'Race briefing' })).toBeVisible();
   await page.locator('label.circuit-card', { hasText: 'Monza' }).click();
   await expect(page.getByRole('heading', { name: 'Italian Grand Prix' })).toBeVisible();
@@ -90,7 +90,7 @@ test('full race journey with a Safety Car, a pit stop and saved records', async 
 test('weather drill: rain arrives and the radar and projections react', async ({ page }) => {
   const problems = watchForErrors(page);
   await page.goto('./?seed=777&circuit=spa&weather=variable&scenario=storm&tyre=medium');
-  await page.getByRole('button', { name: 'New race' }).click();
+  await page.getByRole('button', { name: /^Quick race/ }).click();
   await page.getByRole('button', { name: 'Start race' }).click();
   // The storm arrives about a third of the way into Spa's 44 laps.
   const rain = page.locator('.feed__title', { hasText: /starts to fall|getting heavier|conditions changing/ }).first();
@@ -109,7 +109,7 @@ test('weather drill: rain arrives and the radar and projections react', async ({
 test('the same seed from a shared link replays the same race', async ({ page }) => {
   const run = async () => {
     await page.goto('./?seed=4321&circuit=suzuka');
-    await page.getByRole('button', { name: 'New race' }).click();
+    await page.getByRole('button', { name: /^Quick race/ }).click();
     await expect(page.getByLabel('Race seed')).toHaveValue('4321');
     await page.getByRole('button', { name: 'Start race' }).click();
     for (let i = 0; i < 4; i++) await advance(page);
@@ -124,7 +124,7 @@ test('the same seed from a shared link replays the same race', async ({ page }) 
 test('live race: lights out, cars lap the circuit on their own and the Safety Car pauses the race', async ({ page }) => {
   const problems = watchForErrors(page);
   await page.goto('./?seed=2468&circuit=monza&scenario=safety-car-early');
-  await page.getByRole('button', { name: 'New race' }).click();
+  await page.getByRole('button', { name: /^Quick race/ }).click();
   await page.getByRole('button', { name: 'Start race' }).click();
   await page.getByRole('radio', { name: 'Speed 64 times' }).check({ force: true });
   await page.getByRole('button', { name: 'Lights out' }).click();
@@ -160,7 +160,7 @@ test('layouts fit phone and desktop widths without horizontal scrolling', async 
     await page.goto('./?seed=1357');
     const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(await overflow()).toBeLessThanOrEqual(0);
-    await page.getByRole('button', { name: 'New race' }).click();
+    await page.getByRole('button', { name: /^Quick race/ }).click();
     expect(await overflow()).toBeLessThanOrEqual(0);
     await page.getByRole('button', { name: 'Start race' }).click();
     await advance(page);
@@ -178,21 +178,31 @@ test('reduced motion setting is applied', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduced');
 });
 
-test('season: testing, a weekend and a live Grand Prix that counts for the championship', async ({ page }) => {
+test('career: factory, setup work, both cars in qualifying and a live Grand Prix that counts', async ({ page }) => {
   const problems = watchForErrors(page);
   await page.goto('./');
-  await page.getByRole('button', { name: /2026 season/ }).click();
-  await page.getByLabel('Your driver').selectOption('lec');
+  await page.getByRole('button', { name: /Team Principal career/ }).click();
+  await page.locator('label.team-card', { hasText: 'Ferrari' }).click();
   await page.locator('summary', { hasText: 'Season seed' }).click();
   await page.getByLabel('Season seed').fill('31337');
-  await page.getByRole('button', { name: 'Start the season' }).click();
+  await page.getByRole('button', { name: 'Start the career' }).click();
 
   await expect(page.getByRole('heading', { name: 'Pre-season testing' })).toBeVisible();
   await page.getByRole('button', { name: 'Run day 1' }).click();
+  // Order a new floor before the season starts.
+  await page.getByRole('tab', { name: 'Car development' }).click();
+  await page.getByRole('button', { name: 'Design a new floor' }).click();
+  await expect(page.getByText('Already in development.')).toBeVisible();
+  await page.getByRole('tab', { name: 'Testing' }).click();
   await page.getByRole('button', { name: 'Skip the rest of testing' }).click();
 
   await expect(page.getByRole('heading', { name: 'Australian Grand Prix' })).toBeVisible();
-  for (const fp of ['FP1', 'FP2', 'FP3']) await page.getByRole('button', { name: `Run ${fp}` }).click();
+  // Setup work: run, read the feedback, apply the engineers' proposal, run again.
+  await page.getByRole('button', { name: 'Run FP1' }).click();
+  await page.getByRole('button', { name: /Apply the engineers’ proposal for LEC/ }).click();
+  await page.getByLabel('Lewis Hamilton front wing').fill('60');
+  for (const fp of ['FP2', 'FP3']) await page.getByRole('button', { name: `Run ${fp}` }).click();
+  await expect(page.getByRole('group', { name: 'Tyre for HAM in Q1' })).toBeVisible();
   for (let i = 0; i < 3; i++) {
     const finish = page.getByRole('button', { name: 'Finish the session' });
     if (await finish.isVisible()) {
@@ -201,6 +211,7 @@ test('season: testing, a weekend and a live Grand Prix that counts for the champ
     }
     await page.getByRole('button', { name: /^Run Q[123]$/ }).click();
   }
+  await expect(page.getByText('Parc fermé: the setups are locked until the end of the weekend.')).toBeVisible();
   await expect(page.getByRole('heading', { name: /Grand Prix: 58 laps/ })).toBeVisible();
   await page.getByRole('button', { name: 'Go to the pit wall' }).click();
 
@@ -212,7 +223,10 @@ test('season: testing, a weekend and a live Grand Prix that counts for the champ
 
   await expect(page.getByRole('heading', { name: /Round 1: Australian Grand Prix/ })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Chinese Grand Prix' })).toBeVisible();
-  await expect(page.getByText('Rounds').locator('..')).toContainText('1/23');
-  await page.screenshot({ path: 'test-results/season-round2.png', fullPage: true });
+  await page.getByRole('tab', { name: 'Finances' }).click();
+  await expect(page.getByText('Partner payments')).toBeVisible();
+  await page.getByRole('tab', { name: /^Inbox/ }).click();
+  await expect(page.getByRole('heading', { name: /^Australian Grand Prix: / })).toBeVisible();
+  await page.screenshot({ path: 'test-results/career-inbox.png', fullPage: true });
   expect(problems).toEqual([]);
 });

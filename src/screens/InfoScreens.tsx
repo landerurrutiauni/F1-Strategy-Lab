@@ -40,7 +40,9 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
         <section>
           <h2>Your job</h2>
           <p>
-            You are the race strategist for one driver on the 2026 grid. You do not steer the car: you choose the pace, the tyres and when to stop.
+            You are the Team Principal of a 2026 Formula 1 team. In the career you run the factory and the budget between races; on race day you run the
+            pit wall for both of your cars. You do not steer the cars: you choose the pace, the tyres and when to stop. Switch between your two cars with the
+            tabs above the decision panel (or <kbd>C</kbd>).
             After <strong>Lights out</strong> the race runs live over the circuit's full distance: all 22 cars lap the circuit at their own pace, pull into
             the pit lane for their stops and follow the Safety Car when it comes out. Speeds run from 4× to 64× real time; at 16× a typical Grand Prix takes about
             six minutes.
@@ -112,10 +114,40 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
           </ul>
         </section>
         <section>
-          <h2>The 2026 season</h2>
+          <h2>Team Principal career</h2>
           <p>
-            Season mode runs the whole championship. It starts with two three-day tests at Sakhir in February: each day you pick a programme (aero mapping, race
-            simulations, pit-stop practice or reliability mileage) that improves your car for the whole year. Then come all 23 rounds of the calendar.
+            Pick one of the eleven 2026 teams. The board sets a target in the constructors' championship, three partners pay you every race weekend and the
+            calendar runs from the first test in February to Abu Dhabi in December. Between sessions you work in the headquarters tabs.
+          </p>
+          <ul>
+            <li>
+              <strong>Car development:</strong> your car has five ratings (low, medium and high-speed corners, straight-line speed and tyre care). Each circuit
+              rewards them differently: Monaco is all about slow corners, Monza about straight-line speed. Design new parts (front and rear wing, floor,
+              sidepods, suspension); they take weeks to design and build and arrive on their ready date. Gains vary: a part can beat the wind tunnel or fail to
+              correlate, and the better a rating already is, the harder it is to improve. Rivals bring upgrades between rounds too.
+            </li>
+            <li>
+              <strong>Cost cap:</strong> parts, race operations and crash repairs count towards the $215M cap. The operating costs of the remaining weekends are
+              set aside first, so spending the development budget early leaves nothing for the end of the year.
+            </li>
+            <li>
+              <strong>Factory:</strong> the wind tunnel and CFD cluster make upgrades bigger and quicker, the factory runs more projects at once, the driver
+              simulator gives a better starting setup and sharper feedback, and pit-crew training makes stops quicker. Facility work is paid from the bank but
+              does not count towards the cost cap.
+            </li>
+            <li>
+              <strong>Finances:</strong> after every Grand Prix the partners pay, the prize fund pays an instalment by your constructors' position, and race
+              operations and salaries are paid. Partners also pay bonuses when their objective is met. Crashes cost money.
+            </li>
+            <li>
+              <strong>Inbox:</strong> reports from the technical director (new parts), operations (facilities), the sporting director (race weekends), your
+              partners and the board.
+            </li>
+          </ul>
+          <h2>Race weekends</h2>
+          <p>
+            The season starts with two three-day tests at Sakhir: each day you pick a programme (aero mapping, race simulations, pit-stop practice or
+            reliability mileage) that helps for the whole year. Then come all 23 rounds of the calendar.
           </p>
           <ul>
             <li>
@@ -125,17 +157,20 @@ export function HowToPlayScreen({ onBack }: { onBack: () => void }) {
               <strong>Sprint weekends</strong> (China, Miami, Canada, Great Britain, the Netherlands and Singapore): Practice 1, Sprint Qualifying, the Sprint, Qualifying and the Grand Prix.
             </li>
             <li>
-              <strong>Practice:</strong> setup work, long runs or qualifying simulations build up your weekend preparation. A wet session teaches less.
+              <strong>Practice and setup:</strong> each car has five setup settings (front wing, rear wing, suspension, ride height, differential). After every
+              practice run each driver reports what the car does (understeer, bottoming out, too slow on the straights and so on). Move the sliders towards the
+              feedback or apply the engineers' proposal. Setup work makes the feedback sharper; long runs reduce tyre wear in the races; qualifying
+              simulations add one-lap pace. A wet session teaches less. The setups lock (parc fermé) when the first qualifying session begins.
             </li>
             <li>
               <strong>Qualifying:</strong> three knock-out segments. The slowest six drop out in Q1 and Q2; the top ten fight for pole in Q3. You pick the tyre and the run plan for each
-              segment. In Sprint Qualifying mediums are compulsory in SQ1 and SQ2 and softs in SQ3 when it is dry. Getting through Q1 or Q2 on mediums saves a set of softs for Sunday.
+              of your cars in each segment. In Sprint Qualifying mediums are compulsory in SQ1 and SQ2 and softs in SQ3 when it is dry. Getting through Q1 or Q2 on mediums saves a set of softs for Sunday.
             </li>
             <li>
-              <strong>Races:</strong> run them yourself on the pit wall, or let the team strategist simulate them. Sprints have no compulsory pit stop.
+              <strong>Races:</strong> choose a start tyre for each car, then run the race yourself on the pit wall, or let the team strategist simulate it. Sprints have no compulsory pit stop.
             </li>
             <li>
-              <strong>Points:</strong> 25-18-15-12-10-8-6-4-2-1 in the Grand Prix and 8-7-6-5-4-3-2-1 in the Sprint, with no point for the fastest lap. Teams also bring upgrades during the year, so the order shifts.
+              <strong>Points:</strong> 25-18-15-12-10-8-6-4-2-1 in the Grand Prix and 8-7-6-5-4-3-2-1 in the Sprint, with no point for the fastest lap. Both cars score for the constructors' championship.
             </li>
           </ul>
         </section>

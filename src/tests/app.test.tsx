@@ -26,7 +26,7 @@ describe('game flow', () => {
     const user = userEvent.setup();
     renderApp();
     expect(screen.getByRole('heading', { level: 1, name: /F1 Strategy Lab/i })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'New race' }));
+    await user.click(screen.getByRole('button', { name: /^Quick race/ }));
     expect(screen.getByRole('heading', { name: /Race briefing/i })).toBeInTheDocument();
     expect(screen.getByLabelText('Race seed')).toHaveValue('4242');
     expect(screen.getAllByRole('radio', { name: /Bahrain/ }).length).toBeGreaterThan(0);
@@ -41,7 +41,7 @@ describe('game flow', () => {
   it('advances laps, boxes for new tyres and finishes with a saved result', async () => {
     const user = userEvent.setup();
     renderApp();
-    await user.click(screen.getByRole('button', { name: 'New race' }));
+    await user.click(screen.getByRole('button', { name: /^Quick race/ }));
     await user.click(screen.getByRole('button', { name: 'Start race' }));
 
     expect(screen.getByRole('button', { name: 'Lights out' })).toBeInTheDocument();
@@ -72,7 +72,7 @@ describe('game flow', () => {
   it('supports keyboard shortcuts on the race screen', async () => {
     const user = userEvent.setup();
     renderApp();
-    await user.click(screen.getByRole('button', { name: 'New race' }));
+    await user.click(screen.getByRole('button', { name: /^Quick race/ }));
     await user.click(screen.getByRole('button', { name: 'Start race' }));
     await user.keyboard('3');
     expect(screen.getByRole('radio', { name: /Push/ })).toBeChecked();
@@ -85,7 +85,7 @@ describe('game flow', () => {
   it('resumes a race in progress from the menu', async () => {
     const user = userEvent.setup();
     const first = renderApp();
-    await user.click(screen.getByRole('button', { name: 'New race' }));
+    await user.click(screen.getByRole('button', { name: /^Quick race/ }));
     await user.click(screen.getByRole('button', { name: 'Start race' }));
     await user.click(screen.getByRole('button', { name: 'Next lap' }));
     first.unmount();
@@ -122,13 +122,13 @@ describe('timing tower', () => {
   });
 });
 
-describe('season mode', () => {
+describe('Team Principal career', () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.history.replaceState(null, '', '/');
   });
 
-  /** Clicks the button for the next qualifying segment, or finishes the session after a knock-out. */
+  /** Clicks the button for the next qualifying segment, or finishes the session once both cars are out. */
   async function runQualifying(user: ReturnType<typeof userEvent.setup>) {
     for (let i = 0; i < 3; i++) {
       const finish = screen.queryByRole('button', { name: 'Finish the session' });
@@ -142,13 +142,16 @@ describe('season mode', () => {
     }
   }
 
-  it('runs testing, a full race weekend and keeps the championship', async () => {
+  it('runs testing, the factory, a full race weekend with both cars and keeps the career', async () => {
     const user = userEvent.setup();
     const first = renderApp();
-    await user.click(screen.getByRole('button', { name: /2026 season/ }));
-    expect(screen.getByRole('heading', { name: 'New season' })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Your driver'), 'alb');
-    await user.click(screen.getByRole('button', { name: 'Start the season' }));
+    await user.click(screen.getByRole('button', { name: /Team Principal career/ }));
+    expect(screen.getByRole('heading', { name: 'New career' })).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Williams/ }));
+    await user.click(screen.getByRole('button', { name: 'Start the career' }));
+
+    // Welcome mail from the board.
+    expect(screen.getByRole('tab', { name: 'Inbox (2)' })).toBeInTheDocument();
 
     // Pre-season testing in Bahrain.
     expect(screen.getByRole('heading', { name: 'Pre-season testing' })).toBeInTheDocument();
@@ -156,18 +159,43 @@ describe('season mode', () => {
     await user.click(screen.getByRole('button', { name: 'Run day 1' }));
     expect(screen.getByText(/Reliability mileage: reliability 0% →/)).toBeInTheDocument();
     expect(screen.getByRole('table', { name: /Test 1 day 1 timesheet/ })).toBeInTheDocument();
+
+    // Start a new floor in the design office and upgrade the simulator.
+    await user.click(screen.getByRole('tab', { name: 'Car development' }));
+    expect(screen.getByRole('table', { name: /Your car's ratings/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Design a new floor' }));
+    expect(screen.getByText(/^Ready \d/)).toBeInTheDocument();
+    expect(screen.getByText('Already in development.')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Factory' }));
+    await user.click(screen.getByRole('button', { name: 'Upgrade the driver simulator' }));
+    expect(screen.getByText(/Building work until/)).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Finances' }));
+    expect(screen.getByRole('table', { name: 'Recent income and spending' })).toBeInTheDocument();
+    expect(screen.getByText('Floor design and build')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: 'Inbox (2)' }));
+    expect(screen.getByRole('heading', { name: /Welcome to Williams/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Inbox' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Testing' }));
     await user.click(screen.getByRole('button', { name: 'Skip the rest of testing' }));
 
-    // Round 1: three practice sessions, qualifying and the Grand Prix.
+    // Round 1: setup work in practice, qualifying with both cars and the Grand Prix.
     expect(screen.getByRole('heading', { name: 'Australian Grand Prix' })).toBeInTheDocument();
-    for (const fp of ['FP1', 'FP2', 'FP3']) await user.click(screen.getByRole('button', { name: `Run ${fp}` }));
+    await user.click(screen.getByRole('button', { name: 'Run FP1' }));
+    const proposal = screen.getAllByRole('button', { name: /Apply the engineers’ proposal/ })[0];
+    expect(proposal).toBeEnabled();
+    await user.click(proposal);
+    for (const fp of ['FP2', 'FP3']) await user.click(screen.getByRole('button', { name: `Run ${fp}` }));
     expect(screen.getByRole('table', { name: 'Practice 3 classification' })).toBeInTheDocument();
+    expect(screen.getAllByRole('group', { name: /^Tyre for (ALB|SAI) in Q1$/ })).toHaveLength(2);
     await runQualifying(user);
     expect(screen.getByRole('heading', { name: /Grand Prix: 58 laps/ })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Qualifying result' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Starting tyre for Alex Albon' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Starting tyre for Carlos Sainz' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Let the strategist run it/ }));
 
-    // Round 2 is a Sprint weekend.
+    // Round 2 is a Sprint weekend; the money from round 1 is in.
     expect(screen.getByRole('heading', { name: /Round 1: Australian Grand Prix/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Chinese Grand Prix' })).toBeInTheDocument();
     expect(screen.getAllByText('Sprint weekend').length).toBeGreaterThan(0);
@@ -177,11 +205,13 @@ describe('season mode', () => {
     await user.click(screen.getByRole('tab', { name: 'Standings' }));
     expect(screen.getByRole('table', { name: 'Drivers’ championship' })).toBeInTheDocument();
     expect(within(screen.getByRole('table', { name: 'Drivers’ championship' })).getAllByRole('row')).toHaveLength(23);
+    await user.click(screen.getByRole('tab', { name: 'Finances' }));
+    expect(screen.getByText('Partner payments')).toBeInTheDocument();
 
-    // The season survives a reload.
+    // The career survives a reload.
     first.unmount();
     renderApp();
-    await user.click(screen.getByRole('button', { name: /Continue 2026 season/ }));
+    await user.click(screen.getByRole('button', { name: /Continue career/ }));
     expect(screen.getByRole('heading', { name: /Sprint Qualifying: SQ1/ })).toBeInTheDocument();
-  }, 60_000);
+  }, 90_000);
 });

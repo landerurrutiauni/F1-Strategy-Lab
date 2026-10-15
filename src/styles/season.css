@@ -399,3 +399,499 @@
 .season .segmented {
   margin-top: var(--s4);
 }
+
+/* ---------- Team Principal career ---------- */
+
+/* Team picker */
+.team-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s2);
+}
+
+.team-card {
+  position: relative;
+  display: grid;
+  gap: var(--s1);
+  padding: var(--s3) var(--s3) var(--s3) var(--s4);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+
+.team-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: var(--radius) 0 0 var(--radius);
+  background: var(--team);
+}
+
+.team-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.team-card:hover {
+  background: var(--carbon-800);
+}
+
+.team-card.is-checked {
+  border-color: var(--lime);
+  background: var(--carbon-800);
+}
+
+.team-card:has(input:focus-visible) {
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+
+.team-card__name {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.team-card__drivers {
+  color: var(--paper-dim);
+  font-size: var(--text-sm);
+}
+
+.team-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s3);
+  color: var(--graphite);
+  font-size: var(--text-xs);
+}
+
+.team-card__facts strong {
+  color: var(--paper);
+}
+
+.tag--key {
+  background: var(--lime-wash);
+  color: var(--lime);
+}
+
+.tag--new {
+  background: var(--lime);
+  color: var(--lime-ink);
+}
+
+/* HQ facts row */
+.hq-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s5);
+  margin-bottom: var(--s4);
+  font-size: var(--text-sm);
+  color: var(--graphite);
+}
+
+.hq-facts strong {
+  color: var(--paper);
+}
+
+.hq-big {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 750;
+  line-height: 1;
+}
+
+.hq-sub {
+  margin: var(--s5) 0 var(--s2);
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+/* Ratings */
+.ratings th[scope='row'] {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rating-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 140px;
+}
+
+.rating-bar__track {
+  flex: 1;
+  height: 6px;
+  background: var(--carbon-700);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.rating-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.pecking {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: pecking;
+  font-size: var(--text-sm);
+}
+
+.pecking li {
+  display: grid;
+  grid-template-columns: 2ch auto 1fr auto;
+  align-items: center;
+  gap: var(--s2);
+  padding: 3px var(--s2);
+  border-radius: var(--radius-sm);
+  counter-increment: pecking;
+}
+
+.pecking li::before {
+  content: counter(pecking);
+  color: var(--graphite);
+  font-variant-numeric: tabular-nums;
+}
+
+.pecking li.is-player {
+  background: var(--lime-wash);
+  color: var(--lime);
+  font-weight: 650;
+}
+
+/* Design office */
+.projects {
+  display: grid;
+  gap: var(--s2);
+  margin: 0 0 var(--s4);
+  padding: 0;
+  list-style: none;
+}
+
+.project {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) 1fr auto;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--text-sm);
+}
+
+.project__name {
+  font-weight: 650;
+}
+
+.project__track {
+  height: 8px;
+  background: var(--carbon-700);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.project__fill {
+  display: block;
+  height: 100%;
+  background: var(--lime);
+}
+
+.part-grid,
+.facility-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--s3);
+}
+
+.part-card,
+.facility {
+  display: grid;
+  align-content: start;
+  gap: var(--s2);
+  padding: var(--s3);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.part-card .btn,
+.facility .btn {
+  justify-self: start;
+}
+
+.part-card__name,
+.facility__name {
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.part-card__gain {
+  color: var(--lime);
+}
+
+.part-card__meta {
+  color: var(--paper-dim);
+}
+
+.part-card__blocker {
+  color: var(--amber);
+  font-size: var(--text-xs);
+}
+
+.facility__level {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  color: var(--graphite);
+}
+
+.facility__level .num {
+  margin-left: var(--s2);
+}
+
+.pip {
+  width: 14px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--carbon-600);
+}
+
+.pip.is-on {
+  background: var(--lime);
+}
+
+.facility__effect {
+  font-weight: 600;
+}
+
+.facility__next {
+  font-size: var(--text-xs);
+}
+
+/* Finances */
+.cap-bar {
+  display: flex;
+  height: 12px;
+  background: var(--carbon-700);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cap-bar__spent {
+  background: var(--lime);
+}
+
+.cap-bar__committed {
+  background: repeating-linear-gradient(135deg, var(--carbon-500) 0 4px, var(--carbon-600) 4px 8px);
+}
+
+.cap-legend {
+  display: grid;
+  gap: var(--s1);
+  margin: var(--s3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--paper-dim);
+}
+
+.cap-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.cap-legend strong {
+  margin-left: auto;
+  color: var(--paper);
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--carbon-700);
+  border: 1px solid var(--carbon-500);
+}
+
+.swatch--spent {
+  background: var(--lime);
+  border-color: var(--lime);
+}
+
+.swatch--committed {
+  background: repeating-linear-gradient(135deg, var(--carbon-500) 0 3px, var(--carbon-600) 3px 6px);
+}
+
+.sponsors {
+  display: grid;
+  gap: var(--s3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.sponsors li {
+  display: grid;
+  gap: 2px;
+}
+
+.sponsors__name {
+  font-weight: 700;
+}
+
+.is-income {
+  color: var(--green);
+}
+
+.is-spend {
+  color: var(--paper-dim);
+}
+
+/* Inbox */
+.inbox {
+  display: grid;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inbox__msg {
+  padding: var(--s3) var(--s4);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-left: 3px solid var(--carbon-500);
+  border-radius: var(--radius);
+}
+
+.inbox__msg--good {
+  border-left-color: var(--green);
+}
+
+.inbox__msg--bad {
+  border-left-color: var(--amber);
+}
+
+.inbox__msg.is-new {
+  background: var(--carbon-800);
+}
+
+.inbox__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--text-xs);
+  color: var(--paper-dim);
+}
+
+.inbox__meta .tag {
+  margin-left: var(--s1);
+}
+
+.inbox__title {
+  margin: var(--s1) 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.inbox__body {
+  color: var(--paper-dim);
+  font-size: var(--text-sm);
+}
+
+/* Setup workshop and per-car pickers */
+.setup-cars,
+.quali-cars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s4);
+}
+
+.setup-car,
+.quali-car {
+  padding: var(--s3) var(--s4);
+  background: var(--carbon-850);
+  border: var(--line-soft);
+  border-top: 3px solid var(--team, var(--lime));
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.setup-car__title {
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.setup-row {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--s3);
+}
+
+.setup-row__label {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.setup-row__range {
+  width: 100%;
+  accent-color: var(--lime);
+}
+
+.setup-row__ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+}
+
+.setup-row__feedback {
+  font-size: var(--text-xs);
+  color: var(--amber);
+}
+
+.setup-row__feedback.is-good {
+  color: var(--green);
+}
+
+.quali-car .field,
+.quali-car .segmented {
+  margin-top: var(--s3);
+}
+
+@media (max-width: 640px) {
+  .ratings .tag {
+    display: table;
+    margin: 2px 0 0;
+  }
+
+  .ratings th[scope='row'] {
+    white-space: normal;
+  }
+
+  .rating-bar {
+    min-width: 96px;
+  }
+
+  .project {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .project__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

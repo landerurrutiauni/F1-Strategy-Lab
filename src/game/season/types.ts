@@ -1,3 +1,7 @@
+import type { CarStats } from '../manager/carStats';
+import type { Facilities, PartId } from '../manager/development';
+import type { Finance, Sponsor } from '../manager/finance';
+import type { DriverSetup, SetupFeedback } from '../manager/setup';
 import type { CompoundId, Difficulty, WeatherScenario } from '../types';
 
 /** Sessions of a race weekend, in running order. */
@@ -52,9 +56,9 @@ export interface TestingState {
 
 export type PracticeProgramme = 'setup' | 'long-runs' | 'quali-sim';
 
-/** Weekend preparation of the player's car, each from 0 to 1. */
+/** Weekend preparation of the player's cars, each from 0 to 1. */
 export interface Preparation {
-  /** Setup work: pace in qualifying and the races. */
+  /** Setup knowledge: how clearly the drivers' feedback points to the ideal setup. */
   setup: number;
   /** Long runs: tyre wear in the races. */
   tyres: number;
@@ -68,6 +72,8 @@ export interface PracticeResult {
   wetness: number;
   entries: TimedEntry[];
   notes: string[];
+  /** What each of your drivers reported about the setup. */
+  feedback?: Record<string, SetupFeedback>;
 }
 
 // ---------- Qualifying ----------
@@ -87,8 +93,8 @@ export interface QualiSegment {
   entries: TimedEntry[];
   /** Drivers knocked out at the end of this segment. */
   eliminated: string[];
-  /** The player's choice, when the player took part. */
-  choice?: QualiChoice;
+  /** The choices for your cars that took part, by driver. */
+  choices?: Record<string, QualiChoice>;
 }
 
 export interface QualifyingState {
@@ -98,8 +104,8 @@ export interface QualifyingState {
   segments: QualiSegment[];
   /** Final grid as driver ids once the session is over. */
   grid: string[] | null;
-  /** New soft sets the player saved for the Grand Prix by running mediums. */
-  savedSoftSets: number;
+  /** New soft sets saved for the Grand Prix by running mediums, by driver. */
+  savedSoftSets: Record<string, number>;
 }
 
 // ---------- Races and the championship ----------
@@ -123,7 +129,7 @@ export interface RaceResult {
   session: 'sprint' | 'race';
   rows: ResultRow[];
   fastestLapDriverId: string | null;
-  /** The player's strategy rating (0–100) when the player ran the race. */
+  /** The player's strategy rating (0–100, average over your cars) when the player ran the race. */
   playerRating: number | null;
   /** True when the team strategist simulated the race for the player. */
   simulated: boolean;
@@ -137,6 +143,8 @@ export interface WeekendState {
   next: number;
   weather: Record<SessionId, SessionWeather | undefined>;
   prep: Preparation;
+  /** Setup of each of your cars for this weekend. */
+  setups: Record<string, DriverSetup>;
   practice: PracticeResult[];
   qualifying: Partial<Record<QualiSessionId, QualifyingState>>;
   sprint?: RaceResult;
@@ -144,9 +152,37 @@ export interface WeekendState {
 }
 
 export interface SeasonConfig {
-  playerDriverId: string;
+  /** The team you run as Team Principal (both cars). */
+  teamId: string;
   difficulty: Difficulty;
   seed: number;
+}
+
+export interface DesignProject {
+  id: number;
+  part: PartId;
+  started: string;
+  /** Date the part is designed, built and ready to race. */
+  ready: string;
+  cost: number;
+}
+
+export interface PartUpgrade {
+  part: PartId;
+  date: string;
+  /** First round the part raced. */
+  round: number;
+  gains: Partial<CarStats>;
+}
+
+export interface InboxMessage {
+  id: number;
+  date: string;
+  from: string;
+  title: string;
+  body: string;
+  tone: 'good' | 'bad' | 'info';
+  read: boolean;
 }
 
 /** Summary kept for every completed round. */
@@ -159,14 +195,23 @@ export interface RoundResult {
 }
 
 export interface SeasonState {
-  version: 1;
+  version: 2;
   config: SeasonConfig;
   phase: 'testing' | 'weekend' | 'finished';
   testing: TestingState;
   /** Pre-season development of every team (the player's team comes from testing). */
   teamDevelopment: Record<string, Development>;
-  /** In-season form of every team (s/lap, negative is faster). */
-  teamForm: Record<string, number>;
+  /** Current car ratings of every team (yours from your upgrades, rivals from theirs). */
+  carStats: Record<string, CarStats>;
+  /** Calendar date (ISO) at the team's headquarters. */
+  date: string;
+  projects: DesignProject[];
+  upgrades: PartUpgrade[];
+  facilities: Facilities;
+  finance: Finance;
+  sponsors: Sponsor[];
+  inbox: InboxMessage[];
+  nextId: number;
   /** Mechanical reliability of each team from 0 (fragile) to 1 (bulletproof). */
   reliability: Record<string, number>;
   /** Round being contested (1-based). */
@@ -175,7 +220,11 @@ export interface SeasonState {
   results: RoundResult[];
   /** Paddock news from the last round (upgrades that worked or failed). */
   news: string[];
+  /** The board's target: this constructors' position or better. */
+  boardTarget: number;
 }
+
+export type { DriverSetup };
 
 export interface StandingRow {
   id: string;

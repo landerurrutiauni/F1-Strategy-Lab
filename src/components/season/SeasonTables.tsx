@@ -3,6 +3,10 @@ import { getDriver, getTeam } from '../../game/data/teams';
 import { formatLapTime } from '../../game/format';
 import type { RaceResult, StandingRow, TimedEntry } from '../../game/season/types';
 
+/** Your driver or drivers (both cars of your team in the career). */
+type Mine = string | string[];
+const isMine = (mine: Mine, id: string) => (typeof mine === 'string' ? mine === id : mine.includes(id));
+
 function DriverCell({ driverId }: { driverId: string }) {
   const driver = getDriver(driverId);
   return (
@@ -14,7 +18,7 @@ function DriverCell({ driverId }: { driverId: string }) {
 
 interface TimesheetProps {
   entries: TimedEntry[];
-  playerDriverId: string;
+  playerDriverId: Mine;
   caption: string;
   /** Draw a knock-out line below these positions (e.g. 16 in Q1). */
   cutAfter?: number;
@@ -49,7 +53,7 @@ export function Timesheet({ entries, playerDriverId, caption, cutAfter, showLaps
         </thead>
         <tbody>
           {entries.map((e, i) => (
-            <tr key={e.driverId} className={`${e.driverId === playerDriverId ? 'is-player' : ''}${cutAfter && i + 1 === cutAfter ? ' is-cut' : ''}`}>
+            <tr key={e.driverId} className={`${isMine(playerDriverId, e.driverId) ? 'is-player' : ''}${cutAfter && i + 1 === cutAfter ? ' is-cut' : ''}`}>
               <td>{i + 1}</td>
               <DriverCell driverId={e.driverId} />
               <td>
@@ -68,8 +72,8 @@ export function Timesheet({ entries, playerDriverId, caption, cutAfter, showLaps
 }
 
 /** Classification of a Sprint or Grand Prix with points. */
-export function ResultTable({ result, playerDriverId, caption, limit }: { result: RaceResult; playerDriverId: string; caption: string; limit?: number }) {
-  const rows = limit ? result.rows.filter((r, i) => i < limit || r.driverId === playerDriverId) : result.rows;
+export function ResultTable({ result, playerDriverId, caption, limit }: { result: RaceResult; playerDriverId: Mine; caption: string; limit?: number }) {
+  const rows = limit ? result.rows.filter((r, i) => i < limit || isMine(playerDriverId, r.driverId)) : result.rows;
   return (
     <div className="table-scroll">
       <table className="table table--compact">
@@ -91,7 +95,7 @@ export function ResultTable({ result, playerDriverId, caption, limit }: { result
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.driverId} className={r.driverId === playerDriverId ? 'is-player' : ''}>
+            <tr key={r.driverId} className={isMine(playerDriverId, r.driverId) ? 'is-player' : ''}>
               <td>{r.status === 'retired' ? 'DNF' : r.position}</td>
               <DriverCell driverId={r.driverId} />
               <td className="num">{r.grid}</td>
@@ -115,8 +119,8 @@ export function ResultTable({ result, playerDriverId, caption, limit }: { result
   );
 }
 
-export function DriverStandingsTable({ rows, playerDriverId, limit }: { rows: StandingRow[]; playerDriverId: string; limit?: number }) {
-  const shown = limit ? rows.filter((r, i) => i < limit || r.id === playerDriverId) : rows;
+export function DriverStandingsTable({ rows, playerDriverId, limit }: { rows: StandingRow[]; playerDriverId: Mine; limit?: number }) {
+  const shown = limit ? rows.filter((r, i) => i < limit || isMine(playerDriverId, r.id)) : rows;
   return (
     <div className="table-scroll">
       <table className="table table--compact">
@@ -141,7 +145,7 @@ export function DriverStandingsTable({ rows, playerDriverId, limit }: { rows: St
           {shown.map((r) => {
             const driver = getDriver(r.id);
             return (
-              <tr key={r.id} className={r.id === playerDriverId ? 'is-player' : ''}>
+              <tr key={r.id} className={isMine(playerDriverId, r.id) ? 'is-player' : ''}>
                 <td>{r.position}</td>
                 <DriverCell driverId={r.id} />
                 <td className="muted">{getTeam(driver.teamId).name}</td>

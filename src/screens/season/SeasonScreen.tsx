@@ -5,10 +5,12 @@ import { ConstructorStandingsTable, DriverStandingsTable, ResultTable } from '..
 import { CIRCUITS, getCircuit } from '../../game/data/circuits';
 import { getDriver, getTeam } from '../../game/data/teams';
 import { ordinal } from '../../game/format';
-import { constructorStandings, driverStandings, playerTeamId } from '../../game/season/season';
-import type { SeasonState } from '../../game/season/types';
+import { formatMoney } from '../../game/manager/finance';
+import { constructorStandings, driverStandings, formatDate, managedDrivers, unreadCount } from '../../game/season/season';
+import type { ResultRow, SeasonState } from '../../game/season/types';
 import type { RaceConfig } from '../../game/types';
 import type { SeasonController } from '../../hooks/useSeason';
+import { CarPanel, FacilitiesPanel, FinancePanel, InboxPanel } from './HqPanels';
 import { TestingPanel } from './TestingPanel';
 import { WeekendPanel } from './WeekendPanel';
 
@@ -21,18 +23,24 @@ interface SeasonScreenProps {
   onStartRace: (config: RaceConfig) => void;
 }
 
-type Tab = 'weekend' | 'standings' | 'calendar';
+type Tab = 'weekend' | 'car' | 'factory' | 'finance' | 'inbox' | 'standings' | 'calendar';
+
+const resultText = (row: ResultRow | undefined) => (!row ? '' : row.status === 'retired' ? 'DNF' : `P${row.position}`);
 
 export function SeasonScreen({ controller, resumeLap, onMenu, onNewSeason, onStartRace }: SeasonScreenProps) {
   const season = controller.season!;
   const [tab, setTab] = useState<Tab>('weekend');
   const baseId = useId();
-  const driver = getDriver(season.config.playerDriverId);
-  const team = getTeam(driver.teamId);
-  const drivers = driverStandings(season);
-  const mine = drivers.find((r) => r.id === driver.id)!;
+  const team = getTeam(season.config.teamId);
+  const teams = constructorStandings(season);
+  const mine = teams.find((r) => r.id === team.id)!;
+  const unread = unreadCount(season);
   const tabs: Array<{ id: Tab; label: string }> = [
-    { id: 'weekend', label: season.phase === 'testing' ? 'Testing' : season.phase === 'finished' ? 'Season review' : 'This weekend' },
+    { id: 'weekend', label: season.phase === 'testing' ? 'Testing' : season.phase === 'finished' ? 'Season review' : 'Race weekend' },
+    { id: 'car', label: 'Car development' },
+    { id: 'factory', label: 'Factory' },
+    { id: 'finance', label: 'Finances' },
+    { id: 'inbox', label: unread > 0 ? `Inbox (${unread})` : 'Inbox' },
     { id: 'standings', label: 'Standings' },
     { id: 'calendar', label: 'Calendar' },
   ];
@@ -43,23 +51,29 @@ export function SeasonScreen({ controller, resumeLap, onMenu, onNewSeason, onSta
         <button type="button" className="btn btn--ghost btn--small" onClick={onMenu}>
           <ArrowLeft size={16} aria-hidden="true" /> Menu
         </button>
-        <h1 className="page__title display">2026 season</h1>
+        <h1 className="page__title display">Team Principal</h1>
       </header>
 
       <main id="main" tabIndex={-1} className="season__layout">
-        <section className="season-bar" aria-label="Your championship">
+        <section className="season-bar" aria-label="Your team" style={{ borderLeftColor: team.color }}>
           <span className="season-bar__driver">
-            <span className="team-dot" style={{ background: team.color }} aria-hidden="true" /> #{driver.number} {driver.name}
-            <span className="muted"> · {team.name} · engineer {driver.engineer}</span>
+            <span className="team-dot" style={{ background: team.color }} aria-hidden="true" /> {team.name}
+            <span className="muted"> · {managedDrivers(season).map((id) => getDriver(id).name).join(' and ')}</span>
           </span>
           <span className="season-bar__stat">
-            <span className="muted">Championship</span> <strong className="num">{season.results.length ? ordinal(mine.position) : '–'}</strong>
+            <span className="muted">Date</span> <strong>{formatDate(season.date)}</strong>
+          </span>
+          <span className="season-bar__stat">
+            <span className="muted">Bank</span> <strong className="num">{formatMoney(season.finance.balance)}</strong>
+          </span>
+          <span className="season-bar__stat">
+            <span className="muted">Constructors</span> <strong className="num">{season.results.length ? ordinal(mine.position) : '–'}</strong>
           </span>
           <span className="season-bar__stat">
             <span className="muted">Points</span> <strong className="num">{mine.points}</strong>
           </span>
           <span className="season-bar__stat">
-            <span className="muted">Rounds</span> <strong className="num">{season.results.length}/23</strong>
+            <span className="muted">Target</span> <strong className="num">P{season.boardTarget}</strong>
           </span>
           {!controller.saved && (
             <span className="season-bar__warn" role="status">
@@ -68,7 +82,7 @@ export function SeasonScreen({ controller, resumeLap, onMenu, onNewSeason, onSta
           )}
         </section>
 
-        <div className="tabs" role="tablist" aria-label="Season views">
+        <div className="tabs" role="tablist" aria-label="Team headquarters">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -97,6 +111,10 @@ export function SeasonScreen({ controller, resumeLap, onMenu, onNewSeason, onSta
                 <WeekendPanel season={season} controller={controller} onStartRace={onStartRace} resumeLap={resumeLap} />
               </div>
             ))}
+          {tab === 'car' && <CarPanel season={season} controller={controller} />}
+          {tab === 'factory' && <FacilitiesPanel season={season} controller={controller} />}
+          {tab === 'finance' && <FinancePanel season={season} />}
+          {tab === 'inbox' && <InboxPanel season={season} controller={controller} />}
           {tab === 'standings' && <Standings season={season} />}
           {tab === 'calendar' && <Calendar season={season} />}
         </TabPanel>
@@ -118,17 +136,20 @@ function LastRound({ season }: { season: SeasonState }) {
   const last = season.results[season.results.length - 1];
   if (!last || !season.weekend || season.weekend.next > 0) return null;
   const circuit = getCircuit(last.circuitId);
-  const player = season.config.playerDriverId;
+  const ids = managedDrivers(season);
   const winner = last.race.rows[0];
-  const mine = last.race.rows.find((r) => r.driverId === player)!;
-  const sprintPts = last.sprint?.rows.find((r) => r.driverId === player)?.points ?? 0;
+  const points = [last.sprint, last.race].reduce((sum, r) => sum + (r?.rows.filter((row) => ids.includes(row.driverId)).reduce((a, row) => a + row.points, 0) ?? 0), 0);
   return (
     <Panel title={`Round ${last.round}: ${circuit.grandPrix}`} icon={<Trophy size={16} />} className="last-round">
       <p className="last-round__headline">
         {getDriver(winner.driverId).name} wins.{' '}
-        {mine.status === 'retired' ? `${getDriver(player).name} retired (${mine.reason ?? 'retired'}).` : `${getDriver(player).name} finishes P${mine.position}`}
-        {mine.status === 'finished' &&
-          (mine.points + sprintPts > 0 ? ` (+${mine.points + sprintPts} points${sprintPts ? `, ${sprintPts} of them in the Sprint` : ''}).` : ', outside the points.')}
+        {ids
+          .map((id) => {
+            const row = last.race.rows.find((r) => r.driverId === id);
+            return `${getDriver(id).name} ${row?.status === 'retired' ? `retired (${row.reason ?? 'retired'})` : resultText(row)}`;
+          })
+          .join(', ')}
+        . {points > 0 ? `+${points} points for the team.` : 'No points for the team.'}
       </p>
       {season.news.length > 0 && (
         <ul className="notes">
@@ -141,7 +162,7 @@ function LastRound({ season }: { season: SeasonState }) {
       )}
       <details className="advanced">
         <summary>Full Grand Prix result</summary>
-        <ResultTable result={last.race} playerDriverId={player} caption={`${circuit.grandPrix} result`} />
+        <ResultTable result={last.race} playerDriverId={ids} caption={`${circuit.grandPrix} result`} />
       </details>
     </Panel>
   );
@@ -150,19 +171,19 @@ function LastRound({ season }: { season: SeasonState }) {
 function Standings({ season }: { season: SeasonState }) {
   return (
     <div className="season-split season-split--even">
-      <Panel title="Drivers’ championship" icon={<Trophy size={16} />}>
-        <DriverStandingsTable rows={driverStandings(season)} playerDriverId={season.config.playerDriverId} />
-      </Panel>
       <Panel title="Constructors’ championship" icon={<Trophy size={16} />}>
-        <ConstructorStandingsTable rows={constructorStandings(season)} playerTeamId={playerTeamId(season)} />
+        <ConstructorStandingsTable rows={constructorStandings(season)} playerTeamId={season.config.teamId} />
         <p className="field__help">Points: Grand Prix 25-18-15-12-10-8-6-4-2-1, Sprint 8-7-6-5-4-3-2-1. Ties are broken by Grand Prix results.</p>
+      </Panel>
+      <Panel title="Drivers’ championship" icon={<Trophy size={16} />}>
+        <DriverStandingsTable rows={driverStandings(season)} playerDriverId={managedDrivers(season)} />
       </Panel>
     </div>
   );
 }
 
 function Calendar({ season }: { season: SeasonState }) {
-  const player = season.config.playerDriverId;
+  const ids = managedDrivers(season);
   return (
     <Panel title="2026 calendar" icon={<CalendarDays size={16} />}>
       <div className="table-scroll">
@@ -177,14 +198,13 @@ function Calendar({ season }: { season: SeasonState }) {
               <th scope="col">Pole</th>
               <th scope="col">Winner</th>
               <th scope="col" className="num">
-                You
+                Your cars
               </th>
             </tr>
           </thead>
           <tbody>
             {CIRCUITS.map((c) => {
               const r = season.results.find((x) => x.round === c.round);
-              const mine = r?.race.rows.find((x) => x.driverId === player);
               const current = season.phase === 'weekend' && season.round === c.round;
               return (
                 <tr key={c.id} className={current ? 'is-player' : undefined} aria-current={current ? 'step' : undefined}>
@@ -197,7 +217,7 @@ function Calendar({ season }: { season: SeasonState }) {
                   <td>{c.sprint ? <span className="tag tag--sprint">Sprint</span> : 'Standard'}</td>
                   <td>{r?.poleDriverId ? getDriver(r.poleDriverId).code : ''}</td>
                   <td>{r ? getDriver(r.race.rows[0].driverId).name : current ? 'This weekend' : ''}</td>
-                  <td className="num">{mine ? (mine.status === 'retired' ? 'DNF' : `P${mine.position}`) : ''}</td>
+                  <td className="num">{r ? ids.map((id) => resultText(r.race.rows.find((x) => x.driverId === id))).join(' · ') : ''}</td>
                 </tr>
               );
             })}
@@ -211,24 +231,26 @@ function Calendar({ season }: { season: SeasonState }) {
 function SeasonReview({ season, onNewSeason }: { season: SeasonState; onNewSeason: () => void }) {
   const drivers = driverStandings(season);
   const teams = constructorStandings(season);
-  const player = season.config.playerDriverId;
-  const mine = drivers.find((r) => r.id === player)!;
+  const teamId = season.config.teamId;
+  const mine = teams.find((r) => r.id === teamId)!;
   const champion = drivers[0];
+  const met = mine.position <= season.boardTarget;
   return (
     <div className="season-main">
       <section className="panel season-review" aria-labelledby="review-title">
         <p className="weekend-head__kicker">Season complete · 23 rounds</p>
         <h2 id="review-title" className="weekend-head__title display">
-          {champion.id === player ? `${getDriver(player).name} is world champion` : `${getDriver(champion.id).name} is world champion`}
+          {teams[0].id === teamId ? `${getTeam(teamId).name} are constructors’ champions` : `${getTeam(teams[0].id).name} win the constructors’ title`}
         </h2>
         <p>
-          {getTeam(teams[0].id).name} take the constructors’ title with {teams[0].points} points. {getDriver(player).name} finishes {ordinal(mine.position)} with{' '}
-          {mine.points} points, {mine.wins} win{mine.wins === 1 ? '' : 's'} and {mine.podiums} podium{mine.podiums === 1 ? '' : 's'}.
+          {getTeam(teamId).name} finish {ordinal(mine.position)} with {mine.points} points, {mine.wins} win{mine.wins === 1 ? '' : 's'} and {mine.podiums} podium
+          {mine.podiums === 1 ? '' : 's'}. The board asked for P{season.boardTarget} or better: {met ? 'target met.' : 'target missed.'}{' '}
+          {getDriver(champion.id).name} is drivers’ world champion with {champion.points} points.
         </p>
         <div className="season-actions">
           <button type="button" className="btn btn--primary" onClick={onNewSeason}>
             <Trophy size={16} aria-hidden="true" />
-            <span className="btn__label">Start a new season</span>
+            <span className="btn__label">Start a new career</span>
           </button>
         </div>
       </section>

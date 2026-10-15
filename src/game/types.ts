@@ -221,6 +221,8 @@ export interface CarState {
   tyreFailures: number;
   /** Seconds of penalties applied at classification. */
   penaltyTime: number;
+  /** Car pace at this circuit from the car's ratings (s/lap; absent in older saves). */
+  carPace?: number;
   /** Season effects (absent in quick races). */
   paceBonus?: number;
   wearFactor?: number;
@@ -313,6 +315,8 @@ export interface RaceConfig {
   managedDriverIds?: string[];
   /** Starting tyre for each managed driver (falls back to `startCompound`). */
   startCompounds?: Record<string, CompoundId>;
+  /** Car ratings by team (season development); the 2026 starting ratings when absent. */
+  carStats?: Record<string, Record<'lowSpeed' | 'mediumSpeed' | 'highSpeed' | 'straightLine' | 'tyreCare', number>>;
 }
 
 export interface ScheduledEvents {

@@ -140,3 +140,8 @@
     min-width: 0;
   }
 }
+
+.menu__season .btn--primary .btn__sub {
+  color: inherit;
+  opacity: 0.8;
+}

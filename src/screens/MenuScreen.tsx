@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, History, Info, Play, RotateCcw, Settings as SettingsIcon, Trophy } from 'lucide-react';
+import { BookOpen, Briefcase, History, Info, Play, RotateCcw, Settings as SettingsIcon } from 'lucide-react';
 import { circuitGeometry } from '../game/trackGeometry';
 import { CIRCUITS, getCircuit, nextRound } from '../game/data/circuits';
-import { getDriver } from '../game/data/teams';
+import { getDriver, getTeam } from '../game/data/teams';
 import { ordinal } from '../game/format';
 import { loadActiveRace } from '../game/persistence';
-import { currentSession, driverStandings } from '../game/season/season';
+import { constructorStandings, currentSession } from '../game/season/season';
 import { SESSION_INFO } from '../game/season/calendar';
 import type { SeasonState } from '../game/season/types';
 import { useReducedMotion } from '../hooks/useSettings';
@@ -69,13 +69,14 @@ function MenuTrack({ reducedMotion }: { reducedMotion: boolean }) {
 }
 
 function seasonSummary(season: SeasonState): string {
-  if (season.phase === 'testing') return `Pre-season testing, day ${season.testing.days.length + 1} of 6`;
-  const standing = driverStandings(season).find((r) => r.id === season.config.playerDriverId)!;
+  const team = getTeam(season.config.teamId).name;
+  if (season.phase === 'testing') return `${team}: pre-season testing, day ${Math.min(6, season.testing.days.length + 1)} of 6`;
+  const standing = constructorStandings(season).find((r) => r.id === season.config.teamId)!;
   const position = season.results.length ? `, ${ordinal(standing.position)} with ${standing.points} pts` : '';
-  if (season.phase === 'finished') return `Season complete${position}`;
+  if (season.phase === 'finished') return `${team}: season complete${position}`;
   const session = currentSession(season);
   const circuit = getCircuit(season.weekend!.circuitId);
-  return `Round ${season.round}, ${circuit.grandPrix}${session ? ` (${SESSION_INFO[session].name})` : ''}${position}`;
+  return `${team}: round ${season.round}, ${circuit.grandPrix}${session ? ` (${SESSION_INFO[session].name})` : ''}${position}`;
 }
 
 export function MenuScreen({ onNewRace, onResume, season, onSeason, onNewSeason, onNavigate }: MenuScreenProps) {
@@ -93,27 +94,31 @@ export function MenuScreen({ onNewRace, onResume, season, onSeason, onNewSeason,
           <span>F1</span> <span>Strategy</span> <span>Lab</span>
         </h1>
         <p className="menu__lede">
-          You run the pit wall. Pick a driver from the 2026 grid, read the tyres and the radar, and make the calls that win or lose the race.
+          Run a 2026 Formula 1 team. Develop the car, balance the budget and the cost cap, set up both cars and make the pit-wall calls that win or
+          lose the race.
         </p>
         <nav className="menu__nav" aria-label="Main menu">
-          <button type="button" className="btn btn--primary btn--xl" onClick={onNewRace}>
-            <Play size={18} aria-hidden="true" />
-            <span className="btn__label">New race</span>
-          </button>
           <div className="menu__season">
-            <button type="button" className="btn btn--secondary menu__resume" onClick={onSeason}>
-              <Trophy size={16} aria-hidden="true" />
+            <button type="button" className="btn btn--primary btn--xl menu__resume" onClick={onSeason}>
+              <Briefcase size={18} aria-hidden="true" />
               <span>
-                {season ? 'Continue 2026 season' : '2026 season'}
-                <span className="btn__sub">{season ? seasonSummary(season) : 'Testing, practice, qualifying, Sprints and all 23 Grands Prix'}</span>
+                {season ? 'Continue career' : 'Team Principal career'}
+                <span className="btn__sub">{season ? seasonSummary(season) : 'Car development, factory, budget and all 23 rounds of 2026'}</span>
               </span>
             </button>
             {season && (
               <button type="button" className="btn btn--ghost btn--small" onClick={onNewSeason}>
-                New season
+                New career
               </button>
             )}
           </div>
+          <button type="button" className="btn btn--secondary menu__resume" onClick={onNewRace}>
+            <Play size={16} aria-hidden="true" />
+            <span>
+              Quick race
+              <span className="btn__sub">One Grand Prix on the pit wall with both cars of a team</span>
+            </span>
+          </button>
           {savedSummary && (
             <button type="button" className="btn btn--secondary menu__resume" onClick={onResume}>
               <RotateCcw size={16} aria-hidden="true" />

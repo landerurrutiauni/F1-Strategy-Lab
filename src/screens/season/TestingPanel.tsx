@@ -5,9 +5,9 @@ import { Panel } from '../../components/Panel';
 import { Segmented } from '../../components/Segmented';
 import { Meter, Timesheet } from '../../components/season/SeasonTables';
 import { CIRCUITS, TESTING_CIRCUIT } from '../../game/data/circuits';
-import { getDriver } from '../../game/data/teams';
+import { getTeam } from '../../game/data/teams';
 import { formatDelta } from '../../game/format';
-import { TEST_DAYS, finishTesting, nextTestDay, runTesting } from '../../game/season/season';
+import { TEST_DAYS, finishTesting, formatDate, managedDrivers, nextTestDay, runTesting } from '../../game/season/season';
 import { TEST_PROGRAMMES, developmentEffects } from '../../game/season/sessions';
 import type { SeasonState, TestProgramme } from '../../game/season/types';
 import type { SeasonController } from '../../hooks/useSeason';
@@ -18,7 +18,7 @@ export function TestingPanel({ season, controller }: { season: SeasonState; cont
   const dev = season.testing.development;
   const fx = developmentEffects(dev);
   const lastDay = season.testing.days[season.testing.days.length - 1];
-  const driver = getDriver(season.config.playerDriverId);
+  const team = getTeam(season.config.teamId);
 
   return (
     <div className="season-main">
@@ -33,7 +33,8 @@ export function TestingPanel({ season, controller }: { season: SeasonState; cont
           </h2>
           <p className="muted">
             {TESTING_CIRCUIT.fullName}, {TESTING_CIRCUIT.region}. Two three-day tests are all the running before Melbourne. Choose what the team works on each day:
-            every programme improves one part of the car for the whole season.
+            every programme improves one area for the whole season. Your two drivers share the car, one each day. The design office is
+            already open: start your first upgrades in Car development.
           </p>
         </div>
       </section>
@@ -47,14 +48,14 @@ export function TestingPanel({ season, controller }: { season: SeasonState; cont
               <span className="session-chip__name">
                 Test {d.test} · Day {d.day}
               </span>
-              <span className="session-chip__day">{done ? TEST_PROGRAMMES[season.testing.days[i].programme].name : d.date}</span>
+              <span className="session-chip__day">{done ? TEST_PROGRAMMES[season.testing.days[i].programme].name : formatDate(d.date)}</span>
             </li>
           );
         })}
       </ol>
 
       <div className="season-split">
-        <Panel title={slot ? `Plan for test ${slot.test}, day ${slot.day} (${slot.date})` : 'Testing complete'} icon={<Play size={16} />}>
+        <Panel title={slot ? `Plan for test ${slot.test}, day ${slot.day} (${formatDate(slot.date)})` : 'Testing complete'} icon={<Play size={16} />}>
           {slot ? (
             <>
               <Segmented<TestProgramme>
@@ -78,7 +79,7 @@ export function TestingPanel({ season, controller }: { season: SeasonState; cont
           ) : (
             <div className="season-actions">
               <p>
-                {driver.name} and the team head to {CIRCUITS[0].region.split(',')[0]} for round 1, the {CIRCUITS[0].grandPrix}.
+                {team.name} head to {CIRCUITS[0].region.split(',')[0]} for round 1, the {CIRCUITS[0].grandPrix}.
               </p>
               <button type="button" className="btn btn--primary" onClick={() => controller.update(finishTesting)}>
                 <Plane size={16} aria-hidden="true" />
@@ -106,7 +107,7 @@ export function TestingPanel({ season, controller }: { season: SeasonState; cont
               <li key={n}>{n}</li>
             ))}
           </ul>
-          <Timesheet entries={lastDay.entries} playerDriverId={season.config.playerDriverId} caption={`Test ${lastDay.test} day ${lastDay.day} timesheet`} showLaps />
+          <Timesheet entries={lastDay.entries} playerDriverId={managedDrivers(season)} caption={`Test ${lastDay.test} day ${lastDay.day} timesheet`} showLaps />
         </Panel>
       )}
     </div>
